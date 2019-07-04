@@ -18,12 +18,11 @@ package com.quest.keycloak.broker.wsfed.mappers;
 
 import com.quest.keycloak.broker.wsfed.WSFedEndpoint;
 import com.quest.keycloak.broker.wsfed.WSFedIdentityProviderFactory;
+import com.quest.keycloak.common.wsfed.utils.AttributeUtils;
 import org.jboss.logging.Logger;
 import org.keycloak.broker.provider.AbstractIdentityProviderMapper;
 import org.keycloak.broker.provider.BrokeredIdentityContext;
 import org.keycloak.dom.saml.v2.assertion.AssertionType;
-import org.keycloak.dom.saml.v2.assertion.AttributeStatementType;
-import org.keycloak.dom.saml.v2.assertion.AttributeType;
 import org.keycloak.models.IdentityProviderMapperModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
@@ -34,11 +33,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class UserAttributeMapper extends AbstractIdentityProviderMapper {
-    protected static final Logger logger = Logger.getLogger(AttributeToRoleMapper.class);
+    private static final Logger logger = Logger.getLogger(AttributeToRoleMapper.class);
 
-    public static final String[] COMPATIBLE_PROVIDERS = {WSFedIdentityProviderFactory.PROVIDER_ID};
+    private static final String[] COMPATIBLE_PROVIDERS = {WSFedIdentityProviderFactory.PROVIDER_ID};
 
-    private static final List<ProviderConfigProperty> configProperties = new ArrayList<ProviderConfigProperty>();
+    private static final List<ProviderConfigProperty> configProperties = new ArrayList<>();
 
     public static final String ATTRIBUTE_NAME = "attribute.name";
     public static final String ATTRIBUTE_FRIENDLY_NAME = "attribute.friendly.name";
@@ -111,15 +110,14 @@ public class UserAttributeMapper extends AbstractIdentityProviderMapper {
         try {
             Object token = context.getContextData().get(WSFedEndpoint.WSFED_REQUESTED_TOKEN);
 
-            if(token instanceof AssertionType) {
+            if (token instanceof AssertionType) {
                 return getAttribute((AssertionType) token, name, friendly);
             }
             //TODO: else if token type == JWSInput
             else {
                 logger.warn("WS-Fed user attribute mapper doesn't currently support this token type.");
             }
-        }
-        catch(Exception ex) {
+        } catch (Exception ex) {
             logger.warn("Unable to parse token response", ex);
         }
 
@@ -127,26 +125,11 @@ public class UserAttributeMapper extends AbstractIdentityProviderMapper {
     }
 
     protected String getAttribute(AssertionType assertion, String name, String friendly) {
-        for (AttributeStatementType statement : assertion.getAttributeStatements()) {
-            for (AttributeStatementType.ASTChoiceType choice : statement.getAttributes()) {
-                AttributeType attr = choice.getAttribute();
-                if (name != null && !name.equals(attr.getName())) {
-                    continue;
-                }
-                if (friendly != null && !friendly.equals(attr.getFriendlyName())) {
-                    continue;
-                }
-
-                List<Object> attributeValue = attr.getAttributeValue();
-                if (attributeValue == null || attributeValue.isEmpty()) {
-                    return null;
-                }
-
-                return attributeValue.get(0).toString();
-            }
+        List<Object> attrValue = AttributeUtils.findAttributeValue(assertion, name, friendly, a -> a.getAttributeValue() != null && !a.getAttributeValue().isEmpty());
+        if (attrValue == null) {
+            return null;
         }
-
-        return null;
+        return attrValue.get(0).toString();
     }
 
     @Override

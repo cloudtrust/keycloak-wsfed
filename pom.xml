@@ -1,58 +1,11 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <configuration>
-                    <source>1.8</source>
-                    <target>1.8</target>
-                </configuration>
-            </plugin>
-            <plugin>
-                <artifactId>maven-surefire-plugin</artifactId>
-                <version>2.19.1</version>
-                <executions>
-                    <execution>
-                        <id>default-test</id>
-                        <phase>test</phase>
-                        <goals>
-                            <goal>test</goal>
-                        </goals>
-                        <configuration>
-                            <systemPropertyVariables>
-                                <arquillian.xml>src/test/resources/arquillian.xml</arquillian.xml>
-                            </systemPropertyVariables>
-                            <properties>
-                                <property>
-                                    <name>listener</name>
-                                    <value>io.cloudtrust.keycloak.util.DummyListener</value>
-                                </property>
-                            </properties>
-                        </configuration>
-                    </execution>
-                </executions>
-                <configuration>
-                    <systemPropertyVariables>
-                        <arquillian.xml>src/test/resources/arquillian.xml</arquillian.xml>
-                    </systemPropertyVariables>
-                    <properties>
-                        <property>
-                            <name>listener</name>
-                            <value>io.cloudtrust.keycloak.util.DummyListener</value>
-                        </property>
-                    </properties>
-                </configuration>
-            </plugin>
-        </plugins>
-    </build>
 
     <parent>
         <groupId>org.keycloak.testsuite</groupId>
         <artifactId>integration-arquillian-tests</artifactId>
-        <version>4.8.3.Final</version>
+        <version>6.0.1</version>
     </parent>
 
     <groupId>com.quest</groupId>
@@ -75,8 +28,15 @@
     </organization>
 
     <properties>
+        <auth.server.http.port>8080</auth.server.http.port>
+        <auth.server.ssl.required>false</auth.server.ssl.required>
+
+        <keycloak.version>${project.version}</keycloak.version>
         <apache.commons.lang>2.6</apache.commons.lang>
         <mockito.version>1.10.19</mockito.version>
+        <jfreechart.version>1.5.0</jfreechart.version>
+        <apache.ant.version>1.10.5</apache.ant.version>
+        <sshd-core.version>2.1.0</sshd-core.version>
     </properties>
 
     <dependencies>
@@ -84,25 +44,25 @@
         <dependency>
             <groupId>org.keycloak</groupId>
             <artifactId>keycloak-server-spi</artifactId>
-            <version>${project.version}</version>
+            <version>${keycloak.version}</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.keycloak</groupId>
             <artifactId>keycloak-server-spi-private</artifactId>
-            <version>${project.version}</version>
+            <version>${keycloak.version}</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.keycloak</groupId>
             <artifactId>keycloak-saml-core</artifactId>
-            <version>${project.version}</version>
+            <version>${keycloak.version}</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.keycloak</groupId>
             <artifactId>keycloak-services</artifactId>
-            <version>${project.version}</version>
+            <version>${keycloak.version}</version>
             <scope>provided</scope>
         </dependency>
 
@@ -132,7 +92,6 @@
         <dependency>
             <groupId>org.jboss.resteasy</groupId>
             <artifactId>resteasy-jaxrs</artifactId>
-            <version>${resteasy.version}</version>
             <scope>provided</scope>
         </dependency>
 
@@ -140,7 +99,6 @@
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
-            <version>${junit.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -225,9 +183,9 @@
         </dependency>
 
         <dependency>
-            <groupId>jfree</groupId>
+            <groupId>org.jfree</groupId>
             <artifactId>jfreechart</artifactId>
-            <version>1.0.13</version>
+            <version>${jfreechart.version}</version>
             <scope>test</scope>
         </dependency>
 
@@ -270,7 +228,7 @@
         <dependency>
             <groupId>org.apache.ant</groupId>
             <artifactId>ant</artifactId>
-            <version>1.9.2</version>
+            <version>${apache.ant.version}</version>
             <type>jar</type>
             <scope>test</scope>
         </dependency>
@@ -278,7 +236,7 @@
         <dependency>
             <groupId>org.apache.sshd</groupId>
             <artifactId>sshd-core</artifactId>
-            <version>1.2.0</version>
+            <version>${sshd-core.version}</version>
             <scope>test</scope>
         </dependency>
 
@@ -349,7 +307,6 @@
         <dependency>
             <groupId>org.jboss.arquillian.container</groupId>
             <artifactId>undertow-embedded</artifactId>
-            <version>${undertow-embedded.version}</version>
             <scope>test</scope>
         </dependency>
 
@@ -449,4 +406,51 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <source>1.8</source>
+                    <target>1.8</target>
+                </configuration>
+            </plugin>
+            <plugin>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>default-test</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                        <configuration>
+                            <systemPropertyVariables>
+                                <arquillian.xml>src/test/resources/arquillian.xml</arquillian.xml>
+                            </systemPropertyVariables>
+                            <properties>
+                                <property>
+                                    <name>listener</name>
+                                    <value>org.junit.runner.notification.RunListener</value>
+                                </property>
+                            </properties>
+                        </configuration>
+                    </execution>
+                </executions>
+                <configuration>
+                    <systemPropertyVariables>
+                        <arquillian.xml>src/test/resources/arquillian.xml</arquillian.xml>
+                    </systemPropertyVariables>
+                    <properties>
+                        <property>
+                            <name>listener</name>
+                            <value>org.junit.runner.notification.RunListener</value>
+                        </property>
+                    </properties>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 </project>

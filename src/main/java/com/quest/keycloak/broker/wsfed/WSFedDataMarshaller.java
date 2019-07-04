@@ -26,6 +26,8 @@ import org.keycloak.saml.processing.core.parsers.saml.SAMLParser;
 import org.keycloak.saml.processing.core.saml.v1.writers.SAML11AssertionWriter;
 import org.keycloak.saml.processing.core.saml.v2.writers.SAMLAssertionWriter;
 
+import io.cloudtrust.keycloak.exceptions.CtRuntimeException;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
@@ -42,7 +44,7 @@ public class WSFedDataMarshaller extends DefaultDataMarshaller {
 
                 return new String(bos.toByteArray());
             } catch (ProcessingException pe) {
-                throw new RuntimeException(pe);
+                throw new CtRuntimeException(pe);
             }
         }
         else if (obj instanceof SAML11AssertionType) {
@@ -54,11 +56,9 @@ public class WSFedDataMarshaller extends DefaultDataMarshaller {
 
                 return new String(bos.toByteArray());
             } catch (ProcessingException pe) {
-                throw new RuntimeException(pe);
+                throw new CtRuntimeException(pe);
             }
-        }
-        //else if (obj instanceof JWSInput
-        else {
+        } else {
             return super.serialize(obj);
         }
     }
@@ -73,7 +73,7 @@ public class WSFedDataMarshaller extends DefaultDataMarshaller {
 
                 return clazz.cast(respType);
             } catch (ParsingException pe) {
-                throw new RuntimeException(pe);
+                throw new CtRuntimeException(pe);
             }
         }
         else if (clazz.equals(SAML11AssertionType.class)) {
@@ -84,11 +84,9 @@ public class WSFedDataMarshaller extends DefaultDataMarshaller {
 
                 return clazz.cast(respType);
             } catch (ParsingException pe) {
-                throw new RuntimeException(pe);
+                throw new CtRuntimeException(pe);
             }
-        }
-        //else if(clazz.equals(JWSInput.class))
-        else {
+        } else {
             return super.deserialize(serialized, clazz);
         }
     }

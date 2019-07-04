@@ -17,6 +17,8 @@
 package com.quest.keycloak.protocol.wsfed.mappers;
 
 import com.quest.keycloak.protocol.wsfed.WSFedLoginProtocol;
+import io.cloudtrust.keycloak.exceptions.CtRuntimeException;
+
 import org.keycloak.Config;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakSessionFactory;
@@ -45,7 +47,7 @@ public abstract class AbstractWsfedProtocolMapper implements ProtocolMapper {
 
     @Override
     public final ProtocolMapper create(KeycloakSession session) {
-        throw new RuntimeException("UNSUPPORTED METHOD");
+        throw new CtRuntimeException("UNSUPPORTED METHOD");
     }
 
     @Override

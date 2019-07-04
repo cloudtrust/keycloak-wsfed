@@ -174,45 +174,34 @@ public class WSFedResponseBuilder {
     protected String buildHtml(String destination, String action, String result, String realm, String context, String username) {
         StringBuilder builder = new StringBuilder();
 
-        builder.append("<HTML>");
-        builder.append("<HEAD>");
+        builder.append("<HTML>")
+            .append("<HEAD>")
+            .append("<TITLE>HTTP Binding Response (Response)</TITLE>")
+            .append("</HEAD>")
+            .append("<BODY Onload=\"document.forms[0].submit()\">")
+            .append("<FORM METHOD=\"").append(method).append("\" ACTION=\"").append(destination).append("\">");
 
-        builder.append("<TITLE>HTTP Binding Response (Response)</TITLE>");
-        builder.append("</HEAD>");
-        builder.append("<BODY Onload=\"document.forms[0].submit()\">");
-
-        builder.append(String.format("<FORM METHOD=\"%s\" ACTION=\"%s\">", method, destination));
-
-        if (isNotNull(action)) {
-            builder.append(String.format("<INPUT TYPE=\"HIDDEN\" NAME=\"%s\" VALUE=\"%s\" />", WSFedConstants.WSFED_ACTION, action));
+        String[][] params = new String[][] {
+            { WSFedConstants.WSFED_ACTION, action },
+            //FIXME check if this is necessary (i.e. actually used), as wrealm doesn't seem to be part of the protocol for responses.
+            { WSFedConstants.WSFED_REALM, realm },
+            { WSFedConstants.WSFED_RESULT, result!=null ? escapeAttribute(result) : null },
+            //FIXME check if this is necessary (i.e. actually used), as wreply doesn't seem to be part of the protocol for responses.
+            { WSFedConstants.WSFED_REPLY, replyTo },
+            { WSFedConstants.WSFED_CONTEXT, context }
+        };
+        for(String[] p : params) {
+            if (isNotNull(p[1])) {
+                builder.append("<INPUT TYPE=\"HIDDEN\" NAME=\"").append(p[0]).append("\" VALUE=\"").append(p[1]).append("\" />");
+            }
         }
 
-        //FIXME check if this is necessary (i.e. actually used), as wrealm doesn't seem to be part of the protocol for responses.
-        if (isNotNull(realm)) {
-            builder.append(String.format("<INPUT TYPE=\"HIDDEN\" NAME=\"%s\" VALUE=\"%s\" />", WSFedConstants.WSFED_REALM, realm));
-        }
-
-        if (isNotNull(result)) {
-            builder.append(String.format("<INPUT TYPE=\"HIDDEN\" NAME=\"%s\" VALUE=\"%s\" />", WSFedConstants.WSFED_RESULT, escapeAttribute(result)));
-        }
-
-        //FIXME check if this is necessary (i.e. actually used), as wreply doesn't seem to be part of the protocol for responses.
-        if (isNotNull(replyTo)) {
-            builder.append(String.format("<INPUT TYPE=\"HIDDEN\" NAME=\"%s\" VALUE=\"%s\" />", WSFedConstants.WSFED_REPLY, replyTo));
-        }
-
-        if (isNotNull(context)) {
-            builder.append(String.format("<INPUT TYPE=\"HIDDEN\" NAME=\"%s\" VALUE=\"%s\" />", WSFedConstants.WSFED_CONTEXT, context));
-        }
-
-        builder.append("<NOSCRIPT>");
-        builder.append("<P>JavaScript is disabled. We strongly recommend to enable it. Click the button below to continue.</P>");
-        builder.append("<INPUT TYPE=\"SUBMIT\" VALUE=\"CONTINUE\" />");
-        builder.append("</NOSCRIPT>");
-
-        builder.append("</FORM></BODY></HTML>");
-
-        return builder.toString();
+        return builder.append("<NOSCRIPT>")
+            .append("<P>JavaScript is disabled. We strongly recommend to enable it. Click the button below to continue.</P>")
+            .append("<INPUT TYPE=\"SUBMIT\" VALUE=\"CONTINUE\" />")
+            .append("</NOSCRIPT>")
+            .append("</FORM></BODY></HTML>")
+            .toString();
     }
 
     /**
@@ -221,7 +210,7 @@ public class WSFedResponseBuilder {
      * @return the inpt string with "illegal" characters transformed for correctness
      */
     protected static String escapeAttribute(String s) {
-        StringBuffer out = new StringBuffer();
+        StringBuilder out = new StringBuilder();
         for (int i = 0; i < s.length(); i++) {
             char c = s.charAt(i);
             if (c > 127 || c == '"' || c == '<' || c == '>') {

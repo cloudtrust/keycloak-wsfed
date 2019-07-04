@@ -16,17 +16,6 @@
 
 package com.quest.keycloak.broker.wsfed;
 
-import java.io.BufferedReader;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.net.URLEncoder;
-import java.util.stream.Collectors;
-import javax.ws.rs.HttpMethod;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.MultivaluedMap;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.UriInfo;
-
 import com.quest.keycloak.common.wsfed.WSFedConstants;
 import com.quest.keycloak.common.wsfed.builders.WSFedResponseBuilder;
 import org.jboss.logging.Logger;
@@ -36,19 +25,25 @@ import org.keycloak.broker.provider.IdentityBrokerException;
 import org.keycloak.broker.provider.IdentityProviderDataMarshaller;
 import org.keycloak.broker.provider.util.SimpleHttp;
 import org.keycloak.common.util.PemUtils;
-import org.keycloak.common.util.StreamUtil;
 import org.keycloak.crypto.Algorithm;
 import org.keycloak.crypto.KeyUse;
 import org.keycloak.events.EventBuilder;
-import org.keycloak.models.FederatedIdentityModel;
-import org.keycloak.models.KeyManager;
-import org.keycloak.models.KeycloakSession;
-import org.keycloak.models.RealmModel;
-import org.keycloak.models.UserSessionModel;
+import org.keycloak.models.*;
 import org.keycloak.services.resources.RealmsResource;
 
+import javax.ws.rs.HttpMethod;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.MultivaluedMap;
+import javax.ws.rs.core.Response;
+import javax.ws.rs.core.UriInfo;
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.net.URLEncoder;
+import java.util.stream.Collectors;
+
 public class WSFedIdentityProvider extends AbstractIdentityProvider<WSFedIdentityProviderConfig> {
-	protected static final Logger logger = Logger.getLogger(WSFedIdentityProvider.class);
+    protected static final Logger logger = Logger.getLogger(WSFedIdentityProvider.class);
 
     public WSFedIdentityProvider(KeycloakSession session, WSFedIdentityProviderConfig config) {
         super(session, config);
@@ -67,7 +62,7 @@ public class WSFedIdentityProvider extends AbstractIdentityProvider<WSFedIdentit
             String wsFedRealm = getConfig().getWsFedRealm();
             String context = request.getState().getEncoded();
             // not sure how valuable this null-check is in real life, but it breaks in the tests without it.
-            if( request.getHttpRequest() != null && request.getHttpRequest().getUri() != null ) {
+            if (request.getHttpRequest() != null && request.getHttpRequest().getUri() != null) {
                 MultivaluedMap<String, String> params = request.getHttpRequest().getUri().getQueryParameters();
                 if (params != null && params.containsKey("login_hint")) {
                     String loginHint = params.getFirst("login_hint");
@@ -119,14 +114,15 @@ public class WSFedIdentityProvider extends AbstractIdentityProvider<WSFedIdentit
     @Override
     public void backchannelLogout(KeycloakSession session, UserSessionModel userSession, UriInfo uriInfo, RealmModel realm) {
         String singleLogoutServiceUrl = getConfig().getSingleLogoutServiceUrl();
-        if (singleLogoutServiceUrl == null || singleLogoutServiceUrl.trim().equals("") || !getConfig().isBackchannelSupported()) return;
+        if (singleLogoutServiceUrl == null || singleLogoutServiceUrl.trim().equals("") || !getConfig().isBackchannelSupported())
+            return;
 
         try {
             int status = SimpleHttp.doGet(singleLogoutServiceUrl, session)
                     .param(WSFedConstants.WSFED_ACTION, WSFedConstants.WSFED_SIGNOUT_ACTION)
                     .param(WSFedConstants.WSFED_REALM, getConfig().getWsFedRealm()).asStatus();
 
-            boolean success = status >=200 && status < 400;
+            boolean success = status >= 200 && status < 400;
             if (!success) {
                 logger.warn("Failed ws-fed backchannel broker logout to: " + singleLogoutServiceUrl);
             }
@@ -137,7 +133,7 @@ public class WSFedIdentityProvider extends AbstractIdentityProvider<WSFedIdentit
 
     @Override
     public Response export(UriInfo uriInfo, RealmModel realm, String format) {
-        try (InputStream is = getClass().getResourceAsStream("/wsfed-sp-metadata-template.xml"); BufferedReader br = new BufferedReader(new InputStreamReader(is))){
+        try (InputStream is = getClass().getResourceAsStream("/wsfed-sp-metadata-template.xml"); BufferedReader br = new BufferedReader(new InputStreamReader(is))) {
             KeyManager keyManager = session.keys();
             String template = br.lines().collect(Collectors.joining("\n"));
             template = template.replace("${idp.entityID}", RealmsResource.realmBaseUrl(uriInfo).build(realm.getName()).toString());
@@ -146,7 +142,7 @@ public class WSFedIdentityProvider extends AbstractIdentityProvider<WSFedIdentit
             template = template.replace("${idp.sso.passive}", getEndpoint(uriInfo, realm));
             template = template.replace("${idp.signing.certificate}", PemUtils.encodeCertificate(keyManager.getActiveKey(realm, KeyUse.SIG, Algorithm.RS256).getCertificate()));
             return Response.ok(template, MediaType.APPLICATION_XML_TYPE).build();
-        } catch(Exception ex) {
+        } catch (Exception ex) {
             throw new IdentityBrokerException("Could not generate SP metadata", ex);
         }
     }

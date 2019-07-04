@@ -18,10 +18,10 @@ package com.quest.keycloak.protocol.wsfed;
 
 import com.quest.keycloak.common.wsfed.WSFedConstants;
 import com.quest.keycloak.common.wsfed.builders.WSFedResponseBuilder;
-import com.quest.keycloak.protocol.wsfed.builders.RequestSecurityTokenResponseBuilder;
 import com.quest.keycloak.protocol.wsfed.builders.WSFedOIDCAccessTokenBuilder;
 import com.quest.keycloak.protocol.wsfed.builders.WSFedSAML2AssertionTypeBuilder;
 import com.quest.keycloak.protocol.wsfed.builders.WsFedSAML11AssertionTypeBuilder;
+
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
@@ -41,7 +41,6 @@ import org.keycloak.protocol.oidc.utils.RedirectUtils;
 import org.keycloak.protocol.saml.SamlProtocolUtils;
 import org.keycloak.saml.common.exceptions.ConfigurationException;
 import org.keycloak.services.ErrorPage;
-import org.keycloak.services.managers.ClientSessionCode;
 import org.keycloak.services.messages.Messages;
 import org.keycloak.sessions.AuthenticationSessionModel;
 
@@ -50,7 +49,9 @@ import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
 import javax.xml.datatype.DatatypeConfigurationException;
+
 import java.io.InputStream;
+import java.security.GeneralSecurityException;
 import java.security.KeyPair;
 import java.security.PrivateKey;
 import java.security.PublicKey;
@@ -87,7 +88,17 @@ public class WSFedLoginProtocol implements LoginProtocol {
     private EventBuilder event;
 
     /**
+     * Gets the current KeycloakSession
+     *
+     * @return
+     */
+    protected KeycloakSession getKeycloakSession() {
+        return this.session;
+    }
+
+    /**
      * Sets the current KeycloakSession
+     *
      * @param session the session used for the current connection
      * @return this LoginProtcol (builder pattern)
      */
@@ -98,7 +109,17 @@ public class WSFedLoginProtocol implements LoginProtocol {
     }
 
     /**
+     * Gets the realm currently being used for the login-logout
+     *
+     * @return
+     */
+    protected RealmModel getRealm() {
+        return this.realm;
+    }
+
+    /**
      * Sets the realm currently being used for the login-logout
+     *
      * @param realm
      * @return this LoginProtocol (builder pattern)
      */
@@ -110,6 +131,7 @@ public class WSFedLoginProtocol implements LoginProtocol {
 
     /**
      * TODO check which headers are actually used here
+     *
      * @param headers
      * @return this LoginProtocol (builder pattern)
      */
@@ -121,6 +143,7 @@ public class WSFedLoginProtocol implements LoginProtocol {
 
     /**
      * TODO findout which uriInfo is actually used here
+     *
      * @param uriInfo
      * @return this LoginProtocol (builder pattern)
      */
@@ -132,6 +155,7 @@ public class WSFedLoginProtocol implements LoginProtocol {
 
     /**
      * Sets the current EventBuilder (unused though)
+     *
      * @param event The event builder used for the current connection
      * @return this LoginProtocol (builder pattern)
      */
@@ -144,14 +168,15 @@ public class WSFedLoginProtocol implements LoginProtocol {
     /**
      * Returns a standard keycloak error page. The "cancelled by user" returns a wsfed error, all other errors
      * generate a standard error message
+     *
      * @param authSession the model of the session between the resource and keycloak
-     * @param error The error message to return
+     * @param error       The error message to return
      * @return The Response containing the error page
      */
     @Override
     public Response sendError(AuthenticationSessionModel authSession, Error error) {
         //Replaced cancelLogin
-        if(error == Error.CANCELLED_BY_USER) {
+        if (error == Error.CANCELLED_BY_USER) {
             return ErrorPage.error(session, authSession, Response.Status.BAD_REQUEST, WSFedConstants.WSFED_ERROR_NOTSIGNEDIN);
         }
 
@@ -165,23 +190,23 @@ public class WSFedLoginProtocol implements LoginProtocol {
      *
      * This method is automatically called by keycloak's AuthenticationManager upon a successful login flow
      * TODO check what information the ClientSessionCode actually carries
+     *
+     * @param authSession the authentication session model
      * @param userSession the details of the user session (some user details + state)
      * @param clientSessionCtx the client session context
      * @return
      */
     @Override
     public Response authenticated(AuthenticationSessionModel authSession, UserSessionModel userSession, ClientSessionContext clientSessionCtx) {
-        AuthenticatedClientSessionModel clientSession = clientSessionCtx.getClientSession();
-        ClientSessionCode<AuthenticatedClientSessionModel> accessCode = new ClientSessionCode<>(session, realm, clientSession);
+    	WSFedLoginContext ctx = new WSFedLoginContext(this.session, this.realm, userSession, clientSessionCtx);
+        AuthenticatedClientSessionModel clientSession = ctx.getClientSession();
         ClientModel client = clientSession.getClient();
         String context = clientSession.getNote(WSFedConstants.WSFED_CONTEXT);
         userSession.setNote(WSFedConstants.WSFED_REALM, client.getClientId());
         try {
-            RequestSecurityTokenResponseBuilder builder = new RequestSecurityTokenResponseBuilder();
-            KeyManager keyManager = session.keys();
-            KeyWrapper activeKey = keyManager.getActiveKey(realm, KeyUse.SIG, Algorithm.RS256);
+            KeyWrapper activeKey = session.keys().getActiveKey(realm, KeyUse.SIG, Algorithm.RS256);
 
-            builder.setRealm(clientSession.getClient().getClientId())
+            ctx.getBuilder().setRealm(clientSession.getClient().getClientId())
                     .setAction(WSFedConstants.WSFED_SIGNIN_ACTION)
                     .setDestination(clientSession.getRedirectUri())
                     .setContext(context)
@@ -191,73 +216,76 @@ public class WSFedLoginProtocol implements LoginProtocol {
                     .setSigningCertificate(activeKey.getCertificate())
                     .setSigningKeyPairId(activeKey.getKid());
 
-            if("true".equals(client.getAttribute("saml.encrypt"))){
-                PublicKey publicKey = null;
-                try {
-                    publicKey = SamlProtocolUtils.getEncryptionKey(client);
-                } catch (Exception e) {
-                    logger.error("failed", e);
-                    return ErrorPage.error(session, null, Response.Status.BAD_REQUEST, Messages.FAILED_TO_PROCESS_RESPONSE);
-                }
-                builder.encrypt(publicKey);
+            if ("true".equals(client.getAttribute("saml.encrypt"))) {
+                ctx.getBuilder().encrypt(SamlProtocolUtils.getEncryptionKey(client));
             }
+
             if (useJwt(client)) {
                 //JSON webtoken (OIDC) set in client config
                 WSFedOIDCAccessTokenBuilder oidcBuilder = new WSFedOIDCAccessTokenBuilder();
                 oidcBuilder.setSession(session)
-                            .setUserSession(userSession)
-                            .setAccessCode(accessCode)
-                            .setClient(client)
-                            .setClientSession(clientSession)
-                            .setRealm(realm)
-                            .setX5tIncluded(isX5tIncluded(client));
+                        .setUserSession(userSession)
+                        .setAccessCode(ctx.getAccessCode())
+                        .setClient(client)
+                        .setClientSession(clientSession)
+                        .setRealm(realm)
+                        .setX5tIncluded(isX5tIncluded(client));
 
                 String token = oidcBuilder.build();
-                builder.setJwt(token);
+                ctx.getBuilder().setJwt(token);
             } else {
                 //if client wants SAML
                 WsFedSAMLAssertionTokenFormat tokenFormat = getSamlAssertionTokenFormat(client);
-                switch(tokenFormat) {
-                    case SAML20_ASSERTION_TOKEN_FORMAT:
-                        AssertionType saml20Token = buildSAML20AssertionToken(userSession, accessCode, clientSession);
-                        builder.setSamlToken(saml20Token);
-                        break;
-                    case SAML11_ASSERTION_TOKEN_FORMAT:
-                        SAML11AssertionType saml11Token = buildSAML11AssertionToken(userSession, accessCode, clientSession);
-                        builder.setSaml11Token(saml11Token);
-                        break;
+                if (tokenFormat==WsFedSAMLAssertionTokenFormat.SAML20_ASSERTION_TOKEN_FORMAT) {
+                    AssertionType saml20Token = buildSAML20AssertionToken(ctx);
+                    ctx.setSamlAssertion(saml20Token);
+                    ctx.getBuilder().setSamlToken(saml20Token);
+                } else if (tokenFormat==WsFedSAMLAssertionTokenFormat.SAML11_ASSERTION_TOKEN_FORMAT) {
+                    SAML11AssertionType saml11Token = buildSAML11AssertionToken(ctx);
+                    ctx.setSamlAssertion(saml11Token);
+                    ctx.getBuilder().setSaml11Token(saml11Token);
                 }
             }
 
-            return builder.buildResponse();
+            return evaluateAuthenticatedResponse(ctx);
         } catch (Exception e) {
             logger.error("failed", e);
             return ErrorPage.error(session, null, Response.Status.BAD_REQUEST, Messages.FAILED_TO_PROCESS_RESPONSE);
         }
     }
 
-    private SAML11AssertionType buildSAML11AssertionToken(UserSessionModel userSession, ClientSessionCode accessCode, AuthenticatedClientSessionModel clientSession)
-            throws ConfigurationException {
-        WsFedSAML11AssertionTypeBuilder samlBuilder = new WsFedSAML11AssertionTypeBuilder();
-        samlBuilder.setRealm(realm)
-                .setUriInfo(uriInfo)
-                .setAccessCode(accessCode)
-                .setClientSession(clientSession)
-                .setUserSession(userSession)
-                .setSession(session);
-        return samlBuilder.build();
+    /**
+     * evaluateAuthenticatedResponse returns the response for calls to authenticated(...) according to a given context.
+     * It provides a default behavior and allows different responses by overriding the WSFedLoginProtocol class.
+     *
+     * @param ctx
+     * @return Response
+     * @throws GeneralSecurityException
+     */
+    protected Response evaluateAuthenticatedResponse(WSFedLoginContext ctx) throws GeneralSecurityException {
+        return ctx.getBuilder().buildResponse();
     }
 
-    private AssertionType buildSAML20AssertionToken(UserSessionModel userSession, ClientSessionCode accessCode, AuthenticatedClientSessionModel clientSession)
-            throws DatatypeConfigurationException {
-        WSFedSAML2AssertionTypeBuilder samlBuilder = new WSFedSAML2AssertionTypeBuilder();
-        samlBuilder.setRealm(realm)
-                .setUriInfo(uriInfo)
-                .setAccessCode(accessCode)
-                .setClientSession(clientSession)
-                .setUserSession(userSession)
-                .setSession(session);
-        return samlBuilder.build();
+    private SAML11AssertionType buildSAML11AssertionToken(WSFedLoginContext ctx) throws ConfigurationException {
+        return new WsFedSAML11AssertionTypeBuilder()
+            .setRealm(realm)
+            .setUriInfo(uriInfo)
+            .setAccessCode(ctx.getAccessCode())
+            .setClientSession(ctx.getClientSession())
+            .setUserSession(ctx.getUserSession())
+            .setSession(session)
+            .build();
+    }
+
+    private AssertionType buildSAML20AssertionToken(WSFedLoginContext ctx) throws DatatypeConfigurationException {
+        return new WSFedSAML2AssertionTypeBuilder()
+            .setRealm(realm)
+            .setUriInfo(uriInfo)
+            .setAccessCode(ctx.getAccessCode())
+            .setClientSession(ctx.getClientSession())
+            .setUserSession(ctx.getUserSession())
+            .setSession(session)
+            .build();
     }
 
     public WsFedSAMLAssertionTokenFormat getSamlAssertionTokenFormat(ClientModel client) {
@@ -266,8 +294,7 @@ public class WSFedLoginProtocol implements LoginProtocol {
             if (value != null)
                 return WsFedSAMLAssertionTokenFormat.parse(value);
             return WsFedSAMLAssertionTokenFormat.SAML20_ASSERTION_TOKEN_FORMAT;
-        }
-        catch(RuntimeException ex) {
+        } catch (RuntimeException ex) {
             logger.error(ex.toString());
         }
         return WsFedSAMLAssertionTokenFormat.SAML20_ASSERTION_TOKEN_FORMAT;
@@ -286,8 +313,8 @@ public class WSFedLoginProtocol implements LoginProtocol {
         logger.debug("backchannelLogout");
         ClientModel client = clientSession.getClient();
         String redirectUri = null;
-        if (client.getRedirectUris().size() > 0) {
-        	redirectUri = client.getRedirectUris().iterator().next();
+        if (!client.getRedirectUris().isEmpty()) {
+            redirectUri = client.getRedirectUris().iterator().next();
         }
         String logoutUrl = RedirectUtils.verifyRedirectUri(uriInfo, redirectUri, realm, client);
         if (logoutUrl == null) {
@@ -298,36 +325,38 @@ public class WSFedLoginProtocol implements LoginProtocol {
         //Basically the same as SAML only we don't need to send an actual LogoutRequest. Just need to send the signoutcleanup1.0 action.
         HttpClient httpClient = session.getProvider(HttpClientProvider.class).getHttpClient();
 
-        for (int i = 0; i < 2; i++) { // follow redirects once
-            try {
-                URIBuilder builder = new URIBuilder(logoutUrl);
-                builder.addParameter(WSFedConstants.WSFED_ACTION, WSFedConstants.WSFED_SIGNOUT_CLEANUP_ACTION);
-                builder.addParameter(WSFedConstants.WSFED_REALM, client.getClientId());
-                HttpGet get = new HttpGet(builder.build());
-                HttpResponse response = httpClient.execute(get);
-                try {
-                    int status = response.getStatusLine().getStatusCode();
-                    if (status == 302  && !logoutUrl.endsWith("/")) {
-                        String redirect = response.getFirstHeader(HttpHeaders.LOCATION).getValue();
-                        String withSlash = logoutUrl + "/";
-                        if (withSlash.equals(redirect)) {
-                            logoutUrl = withSlash;
-                            continue;
-                        }
-                    }
-                } finally {
-                    HttpEntity entity = response.getEntity();
-                    if (entity != null) {
-                        InputStream is = entity.getContent();
-                        if (is != null) is.close();
-                    }
-
-                }
-            } catch (Exception e) {
-                logger.warn("failed to send ws-fed logout to RP", e);
-            }
-            break;
+        for (int i = 0; logoutUrl!=null && i < 2; i++) { // follow redirects once
+            logoutUrl = redirect(client, httpClient, logoutUrl);
         }
+    }
+
+    private String redirect(ClientModel client, HttpClient httpClient, String logoutUrl) {
+        try {
+            URIBuilder builder = new URIBuilder(logoutUrl)
+                .addParameter(WSFedConstants.WSFED_ACTION, WSFedConstants.WSFED_SIGNOUT_CLEANUP_ACTION)
+                .addParameter(WSFedConstants.WSFED_REALM, client.getClientId());
+            HttpGet get = new HttpGet(builder.build());
+            HttpResponse response = httpClient.execute(get);
+            try {
+                int status = response.getStatusLine().getStatusCode();
+                if (status == 302 && !logoutUrl.endsWith("/")) {
+                    String redirect = response.getFirstHeader(HttpHeaders.LOCATION).getValue();
+                    String withSlash = logoutUrl + "/";
+                    if (withSlash.equals(redirect)) {
+                        return withSlash;
+                    }
+                }
+            } finally {
+                HttpEntity entity = response.getEntity();
+                if (entity != null) {
+                    InputStream is = entity.getContent();
+                    if (is != null) is.close();
+                }
+            }
+        } catch (Exception e) {
+            logger.warn("failed to send ws-fed logout to RP", e);
+        }
+        return null;
     }
 
     @Override
@@ -336,7 +365,7 @@ public class WSFedLoginProtocol implements LoginProtocol {
         ClientModel client = clientSession.getClient();
         String redirectUri = null;
         if (!client.getRedirectUris().isEmpty()) {
-        	redirectUri = client.getRedirectUris().iterator().next();
+            redirectUri = client.getRedirectUris().iterator().next();
         }
         String logoutUrl = RedirectUtils.verifyRedirectUri(uriInfo, redirectUri, realm, client);
         if (logoutUrl == null) {
@@ -362,12 +391,11 @@ public class WSFedLoginProtocol implements LoginProtocol {
             return ErrorPage.error(session, null, Response.Status.BAD_REQUEST, Messages.FAILED_LOGOUT);
         }
 
-        WSFedResponseBuilder builder = new WSFedResponseBuilder();
-        builder.setMethod(HttpMethod.GET)
+        return new WSFedResponseBuilder()
+                .setMethod(HttpMethod.GET)
                 .setContext(userSession.getNote(WSFED_CONTEXT))
-                .setDestination(logoutUrl);
-
-        return builder.buildResponse(null);
+                .setDestination(logoutUrl)
+                .buildResponse(null);
     }
 
     @Override
@@ -380,7 +408,7 @@ public class WSFedLoginProtocol implements LoginProtocol {
      */
     @Override
     public boolean requireReauthentication(UserSessionModel userSession, AuthenticationSessionModel authSession) {
-    	return false;
+        return false;
     }
 
     protected String getEndpoint(UriInfo uriInfo, RealmModel realm) {

@@ -12,7 +12,7 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import java.net.URI;
 
 /** Inspired from the parent project https://github.com/keycloak/keycloak */
-public class CreateWsFedAuthRequestStepBuilder extends AbtractsStepBuilder {
+public class CreateWsFedAuthRequestStepBuilder extends AbstractStepBuilder {
 
     private final URI authServerWsFedUrl;
     private final String consumerUrl;

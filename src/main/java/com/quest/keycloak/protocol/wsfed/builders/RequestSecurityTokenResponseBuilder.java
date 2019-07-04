@@ -57,7 +57,6 @@ import javax.ws.rs.core.Response;
 import javax.xml.crypto.dsig.CanonicalizationMethod;
 import javax.xml.datatype.XMLGregorianCalendar;
 import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.net.URI;
 import java.security.KeyPair;
 import java.security.PublicKey;
@@ -223,7 +222,7 @@ public class RequestSecurityTokenResponseBuilder extends WSFedResponseBuilder {
     }
 
 
-    public Response buildResponse() throws ProcessingException, org.picketlink.common.exceptions.ProcessingException, ConfigurationException, IOException {
+    public Response buildResponse() throws ProcessingException, org.picketlink.common.exceptions.ProcessingException, ConfigurationException {
         return buildResponse(getStringValue());
     }
 

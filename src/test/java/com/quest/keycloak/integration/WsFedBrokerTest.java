@@ -5,28 +5,20 @@ import com.quest.keycloak.protocol.wsfed.builders.RequestSecurityTokenResponseBu
 import com.quest.keycloak.protocol.wsfed.builders.SAML11AssertionTypeBuilder;
 import com.quest.keycloak.protocol.wsfed.builders.SAML2AssertionTypeBuilder;
 import org.apache.http.util.EntityUtils;
-import org.bouncycastle.asn1.pkcs.RSAPrivateKey;
-import org.bouncycastle.crypto.params.RSAPrivateCrtKeyParameters;
-import org.bouncycastle.crypto.util.PrivateKeyInfoFactory;
-import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
 import org.jgroups.util.UUID;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.nodes.Node;
 import org.junit.Test;
-import org.keycloak.common.util.Base64;
 import org.keycloak.dom.saml.v1.assertion.SAML11AssertionType;
 import org.keycloak.dom.saml.v2.assertion.AssertionType;
 import org.keycloak.saml.common.constants.JBossSAMLURIConstants;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.net.URI;
 import java.security.KeyPair;
 import java.security.PrivateKey;
-import java.security.cert.CertificateException;
-import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 
 import static org.hamcrest.CoreMatchers.*;
@@ -38,8 +30,8 @@ import static org.junit.Assert.fail;
 public class WsFedBrokerTest extends AbstractWsFedAuthTest {
 
     // data for triggering the authentication process
-    private static final String WSFED_LOGIN_URL = "http://localhost:8180/auth/realms/test-wsfed/protocol/wsfed";
-    private static final String WSFED_BROKER_LOGIN_URL = "http://localhost:8180/auth/realms/test-wsfed/broker/wsfed/endpoint";
+    private static final String WSFED_LOGIN_URL = KEYCLOAK_URL + "/realms/test-wsfed/protocol/wsfed";
+    private static final String WSFED_BROKER_LOGIN_URL = KEYCLOAK_URL + "/realms/test-wsfed/broker/wsfed/endpoint";
     private static final String WSFED_BROKER_CLIENT_ID = "wsfed";
     private static final String CLIENT_ID = "wsfed-saml2";
 
@@ -67,8 +59,7 @@ public class WsFedBrokerTest extends AbstractWsFedAuthTest {
                 .execute(resp -> {
                     try {
                         requestBuffer.append(EntityUtils.toString(resp.getEntity()));
-                    }
-                    catch (IOException ex) {
+                    } catch (IOException ex) {
                         fail(ex.getMessage());
                     }
                 });
@@ -104,8 +95,7 @@ public class WsFedBrokerTest extends AbstractWsFedAuthTest {
                 .execute(resp -> {
                     try {
                         requestBuffer.append(EntityUtils.toString(resp.getEntity()));
-                    }
-                    catch (IOException ex) {
+                    } catch (IOException ex) {
                         fail(ex.getMessage());
                     }
                 });
@@ -141,8 +131,7 @@ public class WsFedBrokerTest extends AbstractWsFedAuthTest {
                 .execute(resp -> {
                     try {
                         requestBuffer.append(EntityUtils.toString(resp.getEntity()));
-                    }
-                    catch (IOException ex) {
+                    } catch (IOException ex) {
                         fail(ex.getMessage());
                     }
                 });
@@ -178,8 +167,7 @@ public class WsFedBrokerTest extends AbstractWsFedAuthTest {
                 .execute(resp -> {
                     try {
                         requestBuffer.append(EntityUtils.toString(resp.getEntity()));
-                    }
-                    catch (IOException ex) {
+                    } catch (IOException ex) {
                         fail(ex.getMessage());
                     }
                 });
@@ -224,16 +212,13 @@ public class WsFedBrokerTest extends AbstractWsFedAuthTest {
                 for (Node elements : input.childNodes()) {
                     if ("p".equalsIgnoreCase(elements.nodeName())) {
                         // skip, nothing to check in the message
-                    }
-                    else if ("input".equalsIgnoreCase(elements.nodeName())) {
+                    } else if ("input".equalsIgnoreCase(elements.nodeName())) {
                         assertThat(elements.attr("type"), equalToIgnoringCase("submit"));
-                    }
-                    else {
+                    } else {
                         fail("Unexpected field in form");
                     }
                 }
-            }
-            else {
+            } else {
                 switch (input.attr("name")) {
                     case "wa":
                         assertThat(input.attr("value"), equalTo(WSFedConstants.WSFED_SIGNIN_ACTION));
@@ -256,7 +241,9 @@ public class WsFedBrokerTest extends AbstractWsFedAuthTest {
         return wctx;
     }
 
-    /** create a WS-Fed token with a SAML 2.0 assertion */
+    /**
+     * create a WS-Fed token with a SAML 2.0 assertion
+     */
     private String createWsFedResponseTokenWithSaml2(String contextId, X509Certificate certificate, PrivateKey privateKey) throws Exception {
         RequestSecurityTokenResponseBuilder builder = new RequestSecurityTokenResponseBuilder();
 
@@ -281,7 +268,9 @@ public class WsFedBrokerTest extends AbstractWsFedAuthTest {
         return builder.setSamlToken(assertion).getStringValue();
     }
 
-    /** create a WS-Fed token with a SAML 1.1 assertion */
+    /**
+     * create a WS-Fed token with a SAML 1.1 assertion
+     */
     private String createWsFedResponseTokenWithSaml11(String contextId, X509Certificate certificate, PrivateKey privateKey) throws Exception {
         RequestSecurityTokenResponseBuilder builder = new RequestSecurityTokenResponseBuilder();
 

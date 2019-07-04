@@ -16,15 +16,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 /** Inspired from the parent project https://github.com/keycloak/keycloak */
-public class CreateWsFedAuthResponseStepBuilder extends AbtractsStepBuilder {
+public class CreateWsFedAuthResponseStepBuilder extends AbstractStepBuilder {
 
     private final URI authServerWsFedUrl;
     private final String wsFedToken;
     private final String clientId;
     private final String context;
     private final HttpClientContext originalHttpRequestContext;
-
-    private WsFedClientBuilder clientBuilder;
 
     public CreateWsFedAuthResponseStepBuilder(WsFedClientBuilder clientBuilder, URI authServerWsFedUrl, String wsFedToken, String clientId, String context, HttpClientContext httpClientContext) {
         super(clientBuilder);

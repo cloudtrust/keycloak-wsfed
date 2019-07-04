@@ -149,7 +149,7 @@ public class SAML2RequestedToken implements RequestedToken {
             SubjectType subject = saml2Assertion.getSubject();
             SubjectType.STSubType subType = subject.getSubType();
 
-            if(subType != null || !(subType.getBaseID() instanceof NameIDType)) {
+            if (subType != null && subType.getBaseID() instanceof NameIDType) {
                 subjectNameID = (NameIDType) subType.getBaseID();
             }
         }
@@ -175,22 +175,21 @@ public class SAML2RequestedToken implements RequestedToken {
 
     @Override
     public String getEmail() {
-        if (getSubjectNameID()!=null && getSubjectNameID().getFormat()!=null) {
-            if (getSubjectNameID().getFormat().toString().equals(JBossSAMLURIConstants.NAMEID_FORMAT_EMAIL.get())) {
-                return (subjectNameID.getValue());
-            }
+        if (getSubjectNameID()!=null && getSubjectNameID().getFormat()!=null && getSubjectNameID().getFormat().toString().equals(JBossSAMLURIConstants.NAMEID_FORMAT_EMAIL.get())) {
+            return subjectNameID.getValue();
         }
 
-        if (saml2Assertion.getAttributeStatements() != null ) {
-            for (AttributeStatementType attrStatement : saml2Assertion.getAttributeStatements()) {
-                for (AttributeStatementType.ASTChoiceType choice : attrStatement.getAttributes()) {
-                    AttributeType attribute = choice.getAttribute();
-                    if (X500SAMLProfileConstants.EMAIL.getFriendlyName().equals(attribute.getFriendlyName())
-                            || X500SAMLProfileConstants.EMAIL.get().equals(attribute.getName())
-                            || "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress".equals(attribute.getName())) {
-                        if (!attribute.getAttributeValue().isEmpty()) {
-                            return attribute.getAttributeValue().get(0).toString();
-                        }
+        if (saml2Assertion.getAttributeStatements() == null ) {
+            return null;
+        }
+        for (AttributeStatementType attrStatement : saml2Assertion.getAttributeStatements()) {
+            for (AttributeStatementType.ASTChoiceType choice : attrStatement.getAttributes()) {
+                AttributeType attribute = choice.getAttribute();
+                if (X500SAMLProfileConstants.EMAIL.getFriendlyName().equals(attribute.getFriendlyName())
+                        || X500SAMLProfileConstants.EMAIL.get().equals(attribute.getName())
+                        || "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress".equals(attribute.getName())) {
+                    if (!attribute.getAttributeValue().isEmpty()) {
+                        return attribute.getAttributeValue().get(0).toString();
                     }
                 }
             }
@@ -212,27 +211,20 @@ public class SAML2RequestedToken implements RequestedToken {
 
     public AssertionType getAssertionType(Object token, RealmModel realm) throws IOException, ParsingException, ProcessingException, ConfigurationException {
         AssertionType assertionType =  null;
-        ByteArrayInputStream bis = null;
-        try {
-            SAMLParser parser = SAMLParser.getInstance();
-            String assertionXml = DocumentUtil.asString(((Element) token).getOwnerDocument());
+        SAMLParser parser = SAMLParser.getInstance();
+        String assertionXml = DocumentUtil.asString(((Element) token).getOwnerDocument());
 
-            bis = new ByteArrayInputStream(assertionXml.getBytes());
+        try (ByteArrayInputStream bis = new ByteArrayInputStream(assertionXml.getBytes())) {
             Object assertion = parser.parse(bis);
 
-            if(assertion instanceof EncryptedAssertionType) {
+            if (assertion instanceof EncryptedAssertionType) {
                 PrivateKey privateKey = (PrivateKey)session.keys().getActiveKey(realm, KeyUse.SIG, Algorithm.RS256).getSignKey();
                 assertionType = decryptAssertion((EncryptedAssertionType) assertion, privateKey);
-            }
-            else {
+            } else {
                 assertionType = (AssertionType) assertion;
             }
 
             return assertionType;
-        } finally {
-            if (bis != null) {
-                bis.close();
-            }
         }
     }
 
@@ -253,9 +245,7 @@ public class SAML2RequestedToken implements RequestedToken {
         SAMLParser parser = SAMLParser.getInstance();
 
         JAXPValidationUtil.checkSchemaValidation(decryptedDocumentElement);
-        AssertionType assertion = (AssertionType) parser.parse(StaxParserUtil.getXMLEventReader(DocumentUtil.getNodeAsStream(decryptedDocumentElement)));
-
-        return assertion;
+        return (AssertionType) parser.parse(StaxParserUtil.getXMLEventReader(DocumentUtil.getNodeAsStream(decryptedDocumentElement)));
     }
 
     public AssertionType getAssertionType() {

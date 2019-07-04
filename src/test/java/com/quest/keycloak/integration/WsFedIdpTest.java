@@ -30,7 +30,7 @@ import static org.junit.Assert.fail;
 public class WsFedIdpTest extends AbstractWsFedAuthTest {
 
     private static final String CONSUMER_URL = "http://localhost:4040/";
-    private static final String WSFED_LOGIN_URL = "http://localhost:8180/auth/realms/test-wsfed/protocol/wsfed";
+    private static final String WSFED_LOGIN_URL = KEYCLOAK_URL + "/realms/test-wsfed/protocol/wsfed";
     private static final String SAML2_CLIENT_ID = "wsfed-saml2";
     private static final String SAML1_CLIENT_ID = "wsfed-saml1";
 

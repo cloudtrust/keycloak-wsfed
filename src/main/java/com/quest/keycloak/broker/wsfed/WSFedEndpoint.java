@@ -17,34 +17,10 @@
 package com.quest.keycloak.broker.wsfed;
 
 
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.net.URI;
-import java.net.URLDecoder;
-import java.nio.charset.StandardCharsets;
-import java.security.PublicKey;
-import java.security.cert.X509Certificate;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import javax.ws.rs.Consumes;
-import javax.ws.rs.FormParam;
-import javax.ws.rs.GET;
-import javax.ws.rs.HttpMethod;
-import javax.ws.rs.POST;
-import javax.ws.rs.QueryParam;
-import javax.ws.rs.core.Context;
-import javax.ws.rs.core.HttpHeaders;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.UriInfo;
-import javax.xml.datatype.DatatypeConfigurationException;
-import javax.xml.datatype.DatatypeFactory;
-import javax.xml.datatype.XMLGregorianCalendar;
-
 import com.quest.keycloak.common.wsfed.WSFedConstants;
 import com.quest.keycloak.common.wsfed.builders.WSFedResponseBuilder;
 import com.quest.keycloak.common.wsfed.parsers.WSTrustParser;
+import com.quest.keycloak.common.wsfed.utils.WSFedValidator;
 import org.jboss.logging.Logger;
 import org.keycloak.broker.provider.BrokeredIdentityContext;
 import org.keycloak.broker.provider.IdentityBrokerException;
@@ -73,7 +49,21 @@ import org.picketlink.identity.federation.core.wstrust.wrappers.Lifetime;
 import org.picketlink.identity.federation.core.wstrust.wrappers.RequestSecurityTokenResponse;
 import org.picketlink.identity.federation.core.wstrust.wrappers.RequestSecurityTokenResponseCollection;
 
-import com.quest.keycloak.common.wsfed.utils.WSFedValidator;
+import javax.ws.rs.*;
+import javax.ws.rs.core.*;
+import javax.xml.datatype.DatatypeConfigurationException;
+import javax.xml.datatype.DatatypeFactory;
+import javax.xml.datatype.XMLGregorianCalendar;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.net.URI;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
+import java.security.PublicKey;
+import java.security.cert.X509Certificate;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * @author <a href="mailto:kevin.horvatin@software.dell.com">Kevin Horvatin</a>
@@ -102,7 +92,7 @@ public class WSFedEndpoint {
     private HttpHeaders headers;
 
     public WSFedEndpoint(RealmModel realm, WSFedIdentityProvider provider, WSFedIdentityProviderConfig config,
-            IdentityProvider.AuthenticationCallback callback) {
+                         IdentityProvider.AuthenticationCallback callback) {
         this.realm = realm;
         this.config = config;
         this.callback = callback;
@@ -111,22 +101,22 @@ public class WSFedEndpoint {
 
     @GET
     public Response redirectBinding(@QueryParam(WSFedConstants.WSFED_ACTION) String wsfedAction,
-            @QueryParam(WSFedConstants.WSFED_RESULT) String wsfedResult,
-            @QueryParam(WSFedConstants.WSFED_CONTEXT) String context) {
+                                    @QueryParam(WSFedConstants.WSFED_RESULT) String wsfedResult,
+                                    @QueryParam(WSFedConstants.WSFED_CONTEXT) String context) {
         return execute(wsfedAction, wsfedResult, context);
     }
 
 
     /**
+     *
      */
     @POST
     @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
     public Response postBinding(@FormParam(WSFedConstants.WSFED_ACTION) String wsfedAction,
-            @FormParam(WSFedConstants.WSFED_RESULT) String wsfedResult,
-            @FormParam(WSFedConstants.WSFED_CONTEXT) String context) {
+                                @FormParam(WSFedConstants.WSFED_RESULT) String wsfedResult,
+                                @FormParam(WSFedConstants.WSFED_CONTEXT) String context) {
         return execute(wsfedAction, wsfedResult, context);
     }
-
 
 
     protected PublicKey getIDPKey() throws ProcessingException, ConfigurationException {
@@ -326,21 +316,18 @@ public class WSFedEndpoint {
                 return ErrorPage.error(session, null, Response.Status.BAD_REQUEST, Messages.INVALID_FEDERATED_IDENTITY_ACTION);
             }
 
-           //TODO: Do we need to handle if the IDP sent back more than one token?
+            //TODO: Do we need to handle if the IDP sent back more than one token?
             Object rt = rstr.getRequestedSecurityToken().getAny().get(0);
             RequestedToken token = null;
 
             if (rstr.getTokenType().compareTo(URI.create("urn:oasis:names:tc:SAML:2.0:assertion")) == 0 ||
                     rstr.getTokenType().compareTo(URI.create("http://docs.oasis-open.org/wss/oasis-wss-saml-token-profile-1.1#SAMLV2.0")) == 0) {
                 token = new SAML2RequestedToken(session, wsfedResponse, rt, realm);
-            }
-            else if (rstr.getTokenType().compareTo(URI.create("urn:oasis:names:tc:SAML:1.0:assertion")) == 0) {
+            } else if (rstr.getTokenType().compareTo(URI.create("urn:oasis:names:tc:SAML:1.0:assertion")) == 0) {
                 token = new SAML11RequestedToken(wsfedResponse, rt);
-            }
-            else if (rstr.getTokenType().compareTo(URI.create("urn:ietf:params:oauth:token-type:jwt")) == 0) {
+            } else if (rstr.getTokenType().compareTo(URI.create("urn:ietf:params:oauth:token-type:jwt")) == 0) {
                 throw new NotImplementedException("We don't currently support a token type of urn:ietf:params:oauth:token-type:jwt");
-            }
-            else {
+            } else {
                 throw new NotImplementedException("We don't currently support a token type of " + rstr.getTokenType().toString());
             }
 
@@ -396,19 +383,15 @@ public class WSFedEndpoint {
             throw new ParsingException("WSFed response was null");
         }
 
-        ByteArrayInputStream bis = null;
-        try {
-            WSTrustParser parser = new WSTrustParser();
-            bis = new ByteArrayInputStream(wsfedResponse.getBytes());
-
+        WSTrustParser parser = new WSTrustParser();
+        try (ByteArrayInputStream bis = new ByteArrayInputStream(wsfedResponse.getBytes())) {
             //TODO: WSTrustParser has a problem when this is a JWT. Not really sure why but guessing it has to do with the BinarySecurityToken.
             Object response = parser.parse(bis);
             RequestSecurityTokenResponse rstr = null;
 
             if (response instanceof RequestSecurityTokenResponse) {
                 rstr = (RequestSecurityTokenResponse) response;
-            }
-            else if (response instanceof RequestSecurityTokenResponseCollection) {
+            } else if (response instanceof RequestSecurityTokenResponseCollection) {
                 RequestSecurityTokenResponseCollection rstrCollection = (RequestSecurityTokenResponseCollection) response;
                 List<RequestSecurityTokenResponse> responses = rstrCollection.getRequestSecurityTokenResponses();
                 //RequestSecurityTokenResponseCollection must contain at least one RequestSecurityTokenResponse per the spec
@@ -417,14 +400,8 @@ public class WSFedEndpoint {
             }
 
             return rstr;
-        } catch (org.picketlink.common.exceptions.ParsingException ex) {
-            throw new ParsingException(ex);
         } catch (Exception ex) {
             throw new ParsingException(ex);
-        } finally {
-            if (bis != null) {
-                bis.close();
-            }
         }
     }
 }

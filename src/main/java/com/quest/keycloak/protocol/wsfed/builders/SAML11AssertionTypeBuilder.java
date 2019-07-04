@@ -27,6 +27,8 @@ import org.keycloak.saml.processing.core.saml.v2.common.IDGenerator;
 import org.keycloak.saml.processing.core.saml.v2.util.AssertionUtil;
 import org.keycloak.saml.processing.core.saml.v2.util.XMLTimeUtil;
 
+import io.cloudtrust.keycloak.exceptions.CtRuntimeException;
+
 import javax.xml.datatype.DatatypeConfigurationException;
 import javax.xml.datatype.DatatypeFactory;
 import javax.xml.datatype.XMLGregorianCalendar;
@@ -131,15 +133,15 @@ public class SAML11AssertionTypeBuilder {
             conditions.setNotOnOrAfter(assertionValidityLength);
         } else {
             try {
-                AssertionUtil.createSAML11TimedConditions(assertion, assertionExpiration * 1000, CLOCK_SKEW);
+                AssertionUtil.createSAML11TimedConditions(assertion, assertionExpiration * 1000L, CLOCK_SKEW);
                 conditions = assertion.getConditions();
             }
             catch(IssueInstantMissingException ex) {
-                throw new RuntimeException(ex);
+                throw new CtRuntimeException(ex);
             }
         }
         if (conditions == null) {
-            throw new RuntimeException("Failed to create timed conditions");
+            throw new CtRuntimeException("Failed to create timed conditions");
         }
         conditions.add(audience);
         assertion.setConditions(conditions);
@@ -156,17 +158,14 @@ public class SAML11AssertionTypeBuilder {
 
         return assertion;
     }
-    protected XMLGregorianCalendar getXMLGregorianCalendarNow() throws DatatypeConfigurationException
-    {
+
+    protected XMLGregorianCalendar getXMLGregorianCalendarNow() throws DatatypeConfigurationException {
         GregorianCalendar gregorianCalendar = new GregorianCalendar();
         DatatypeFactory datatypeFactory = DatatypeFactory.newInstance();
-        XMLGregorianCalendar now =
-                datatypeFactory.newXMLGregorianCalendar(gregorianCalendar);
-        return now;
+        return datatypeFactory.newXMLGregorianCalendar(gregorianCalendar);
     }
 
     protected SAML11AuthenticationStatementType getAuthenticationStatement(SAML11SubjectType subject, XMLGregorianCalendar authenticationInstant) {
-
         SAML11AuthenticationStatementType authnStatement = new SAML11AuthenticationStatementType(URI.create(JBossSAMLURIConstants.AC_PASSWORD_PROTECTED_TRANSPORT.get()), authenticationInstant);
         authnStatement.setSubject(subject);
         return authnStatement;

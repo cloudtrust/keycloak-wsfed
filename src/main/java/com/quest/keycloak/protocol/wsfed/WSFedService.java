@@ -16,16 +16,6 @@
 
 package com.quest.keycloak.protocol.wsfed;
 
-import javax.ws.rs.Consumes;
-import javax.ws.rs.GET;
-import javax.ws.rs.HttpMethod;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.MultivaluedMap;
-import javax.ws.rs.core.Response;
-
 import com.quest.keycloak.common.wsfed.WSFedConstants;
 import com.quest.keycloak.common.wsfed.builders.WSFedResponseBuilder;
 import com.quest.keycloak.protocol.wsfed.builders.WSFedProtocolParameters;
@@ -34,7 +24,10 @@ import org.jboss.logging.Logger;
 import org.keycloak.events.Errors;
 import org.keycloak.events.EventBuilder;
 import org.keycloak.events.EventType;
-import org.keycloak.models.*;
+import org.keycloak.models.AuthenticatedClientSessionModel;
+import org.keycloak.models.ClientModel;
+import org.keycloak.models.RealmModel;
+import org.keycloak.models.UserSessionModel;
 import org.keycloak.protocol.AuthorizationEndpointBase;
 import org.keycloak.protocol.LoginProtocol;
 import org.keycloak.protocol.oidc.OIDCLoginProtocol;
@@ -46,17 +39,22 @@ import org.keycloak.services.messages.Messages;
 import org.keycloak.services.resources.RealmsResource;
 import org.keycloak.sessions.AuthenticationSessionModel;
 
+import javax.ws.rs.*;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.MultivaluedMap;
+import javax.ws.rs.core.Response;
+
 /**
  * All protocols added to keycloak have to extend the AuthorizationEndpointBase.
- *
+ * <p>
  * In this case, for WS-FED, this class implements parts of the specifications
  * (see http://docs.oasis-open.org/wsfed/federation/v1.2/os/ws-federation-1.2-spec-os.html), namely the single sign-on
  * (see section 13.6) and signout (see section 13.2.4).
- *
+ * <p>
  * Note: this part of the protocol is for responding to browser requests, not the SOAP part of the WS protocol.
  * This also means that this part doesn't implement any "server to server" communication. Everything is initiated by the
  * client and handled through the browser.
- *
+ * <p>
  * Created on 5/19/15.
  */
 public class WSFedService extends AuthorizationEndpointBase {
@@ -65,6 +63,7 @@ public class WSFedService extends AuthorizationEndpointBase {
     /**
      * Standard constructor
      * TODO figure out what Eventbuilder does (because of course it's not documented)
+     *
      * @param realm The keycloak realm that represents this WSFedService (client service)
      * @param event
      */
@@ -75,7 +74,7 @@ public class WSFedService extends AuthorizationEndpointBase {
     /**
      * Method called in case of a GET. Current supports only SIGNIN and SIGNOUT (cleanup handled as signout).
      * WS-Fed protocol makes no difference between GET and POST for these steps.
-     *
+     * <p>
      * Used if the client uses a 302 to send its message to keycloak
      */
     @GET
@@ -101,7 +100,7 @@ public class WSFedService extends AuthorizationEndpointBase {
      * Returns the federation metadata document identifying the endpoint address as a SecurityTokenService
      * (see http://docs.oasis-open.org/wsfed/federation/v1.2/os/ws-federation-1.2-spec-os.html
      * section 3.1.2.2 SecurityTokenServiceType).
-     *
+     * <p>
      * FIXME replace lazy xml template substitution with JAXB handling .... probably.
      *
      * @return a string containing the xml for the wsfed metadata
@@ -116,7 +115,7 @@ public class WSFedService extends AuthorizationEndpointBase {
 
     /**
      * Makes basic sanity checks on the general state of the connection and the request's parameters.
-     *
+     * <p>
      * NOTE: Many of the assumptions made in this method only hold true because attributes and pseudonyms are not
      * considered.
      *
@@ -145,19 +144,18 @@ public class WSFedService extends AuthorizationEndpointBase {
         if (params.getWsfed_action() == null) {
             event.event(EventType.LOGIN);
             event.error(Errors.INVALID_REQUEST);
-            return ErrorPage.error(session,null, Response.Status.BAD_REQUEST, Messages.INVALID_REQUEST);
+            return ErrorPage.error(session, null, Response.Status.BAD_REQUEST, Messages.INVALID_REQUEST);
         }
 
         if (params.getWsfed_realm() == null) {
-            if(isSignout(params)) {
+            if (isSignout(params)) {
                 //The spec says that signout doesn't require wtrealm but we generally need a way to identify the client to do SLO properly. So if wtrealm isn't passed get the user session and see if we
                 //have one.
                 if (authResult != null) {
                     UserSessionModel userSession = authResult.getSession();
                     params.setWsfed_realm(userSession.getNote(WSFedConstants.WSFED_REALM));
                 }
-            }
-            else { //If it's not a signout event than wtrealm is required
+            } else { //If it's not a signout event than wtrealm is required
                 event.event(EventType.LOGIN);
                 event.error(Errors.INVALID_CLIENT);
                 return ErrorPage.error(session, null, Response.Status.BAD_REQUEST, Messages.INVALID_REQUEST);
@@ -169,6 +167,7 @@ public class WSFedService extends AuthorizationEndpointBase {
 
     /**
      * Checks if any of the signout parameters are set, or if the state is "logging out"
+     *
      * @param params the WSFedProtocolParameters obtained from the browser request
      * @return true if we are in signout situation
      */
@@ -181,12 +180,13 @@ public class WSFedService extends AuthorizationEndpointBase {
     /**
      * Checks that the client (the resource in this case) meets sanity tests
      * i.e. known by keycloak, is enabled, and does not only have "bearer" tokens (tokens that only carry information)
+     *
      * @param client in this case the client is the resource (which is also a client to keycloak)
      * @param params the WSFedProtocolParameters obtained from the browser request
      * @return a response corresponding to an error page if the sanity checks fail, and null otherwise
      */
     protected Response clientChecks(ClientModel client, WSFedProtocolParameters params) {
-        if(isSignout(params)) {
+        if (isSignout(params)) {
             return null; //client checks not required for logout
         }
 
@@ -216,17 +216,17 @@ public class WSFedService extends AuthorizationEndpointBase {
      * Main method called when a GET or POST is called. Based on the WS-Fed action in the section 13.1.
      * However, only sign-on and sign-out are implemented.
      * Attributes are not implemented (501) and Pseudonym request is completely absent -> a request would return an error
-     *
+     * <p>
      * TODO figure out what the flow path is
+     *
      * @param redirectToAuthentication if set to true, on login the authentication processor will redirect to the "flow path" (whatever that is)
      * @return a javax Response for the web browser.
      */
     public Response handleWsFedRequest(boolean redirectToAuthentication) {
         MultivaluedMap<String, String> requestParams = null;
-        if(httpRequest.getHttpMethod() == HttpMethod.POST) {
+        if (httpRequest.getHttpMethod().equals(HttpMethod.POST)) {
             requestParams = httpRequest.getFormParameters();
-        }
-        else {
+        } else {
             requestParams = session.getContext().getUri().getQueryParameters(true);
         }
 
@@ -241,26 +241,22 @@ public class WSFedService extends AuthorizationEndpointBase {
         event.client(client);
         event.realm(realm);
 
-        if(params.getWsfed_action().compareTo(WSFedConstants.WSFED_SIGNIN_ACTION) == 0) {
+        if (params.getWsfed_action().compareTo(WSFedConstants.WSFED_SIGNIN_ACTION) == 0) {
             return handleLoginRequest(params, client, redirectToAuthentication);
-        }
-        else if (params.getWsfed_action().compareTo(WSFedConstants.WSFED_ATTRIBUTE_ACTION) == 0) {
+        } else if (params.getWsfed_action().compareTo(WSFedConstants.WSFED_ATTRIBUTE_ACTION) == 0) {
             return Response.status(501).build(); //Not Implemented
-        }
-        else if (params.getWsfed_action().compareTo(WSFedConstants.WSFED_SIGNOUT_ACTION) == 0 ||
-                 params.getWsfed_action().compareTo(WSFedConstants.WSFED_SIGNOUT_CLEANUP_ACTION) == 0) {
+        } else if (params.getWsfed_action().compareTo(WSFedConstants.WSFED_SIGNOUT_ACTION) == 0 ||
+                params.getWsfed_action().compareTo(WSFedConstants.WSFED_SIGNOUT_CLEANUP_ACTION) == 0) {
             logger.debug("** logout request");
             event.event(EventType.LOGOUT);
 
             return handleLogoutRequest(params, client);
-        }
-        else if (params.getWsfed_action().compareTo(UserSessionModel.State.LOGGING_OUT.toString()) == 0) {
+        } else if (params.getWsfed_action().compareTo(UserSessionModel.State.LOGGING_OUT.toString()) == 0) {
             logger.debug("** logging out request");
             event.event(EventType.LOGOUT);
 
             return handleLogoutResponse(params, client);
-        }
-        else {
+        } else {
             event.event(EventType.LOGIN);
             event.error(Errors.INVALID_TOKEN);
             return ErrorPage.error(session, null, Response.Status.BAD_REQUEST, Messages.INVALID_REQUEST);
@@ -273,8 +269,8 @@ public class WSFedService extends AuthorizationEndpointBase {
      * test purposes), and then hand them over to keycloak's AuthorizationEndpointBase's
      * handleBrowserAuthenticationRequest.
      *
-     * @param params the WSFedProtocolParameters obtained from the browser request
-     * @param client in this case the client is the resource (which is a client configured in keycloak)
+     * @param params                   the WSFedProtocolParameters obtained from the browser request
+     * @param client                   in this case the client is the resource (which is a client configured in keycloak)
      * @param redirectToAuthentication if set to true, on login the authentication processor will redirect to the "flow path"
      * @return the response generated by keycloak's AuthorizationEndpointBase handleBrowserAuthenticationRequest, or an error page
      */
@@ -285,7 +281,7 @@ public class WSFedService extends AuthorizationEndpointBase {
         //Essentially ACS
         String redirect = RedirectUtils.verifyRedirectUri(session.getContext().getUri(), params.getWsfed_reply(), realm, client);
 
-        if(redirect == null && client.getRedirectUris().size() > 0) {
+        if (redirect == null && !client.getRedirectUris().isEmpty()) {
             //wreply is optional so if it's not specified use the base url
             redirect = client.getBaseUrl();
         }
@@ -318,10 +314,9 @@ public class WSFedService extends AuthorizationEndpointBase {
         }
 
         String logoutUrl;
-        if(client != null) {
+        if (client != null) {
             logoutUrl = RedirectUtils.verifyRedirectUri(session.getContext().getUri(), params.getWsfed_reply(), realm, client);
-        }
-        else {
+        } else {
             logoutUrl = RedirectUtils.verifyRealmRedirectUri(session.getContext().getUri(), params.getWsfed_reply(), realm);
         }
 
@@ -342,7 +337,7 @@ public class WSFedService extends AuthorizationEndpointBase {
             event.session(userSession);
 
             logger.debug("browser Logout");
-            Response response = authManager.browserLogout(session, realm, userSession, session.getContext().getUri(), clientConnection, headers, client.getName());
+            Response response = AuthenticationManager.browserLogout(session, realm, userSession, session.getContext().getUri(), clientConnection, headers, client.getName());
             event.success();
             return response;
         }
@@ -379,16 +374,17 @@ public class WSFedService extends AuthorizationEndpointBase {
         event.session(userSession);
 
         logger.debug("logout response");
-        Response response = authManager.browserLogout(session, realm, userSession, session.getContext().getUri(), clientConnection, headers, client.getName());
+        Response response = AuthenticationManager.browserLogout(session, realm, userSession, session.getContext().getUri(), clientConnection, headers, client.getName());
         event.success();
         return response;
     }
 
     /**
      * The only purpose of this method is to allow us to unit test this class
+     *
      * @return
      */
     protected AuthenticationManager.AuthResult authenticateIdentityCookie() {
-        return authManager.authenticateIdentityCookie(session, realm, false);
+        return AuthenticationManager.authenticateIdentityCookie(session, realm, false);
     }
 }

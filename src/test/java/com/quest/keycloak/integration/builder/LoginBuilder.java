@@ -2,6 +2,7 @@ package com.quest.keycloak.integration.builder;
 
 import com.quest.keycloak.integration.WsFedClient;
 import com.quest.keycloak.integration.WsFedClientBuilder;
+
 import org.apache.http.NameValuePair;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -20,8 +21,8 @@ import org.keycloak.testsuite.admin.Users;
 
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriBuilder;
-import java.io.UnsupportedEncodingException;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
@@ -132,12 +133,7 @@ public class LoginBuilder implements WsFedClient.Step {
             if (isPost) {
                 HttpPost res = new HttpPost(action);
 
-                UrlEncodedFormEntity formEntity;
-                try {
-                    formEntity = new UrlEncodedFormEntity(parameters, "UTF-8");
-                } catch (UnsupportedEncodingException e) {
-                    throw new RuntimeException(e);
-                }
+                UrlEncodedFormEntity formEntity = new UrlEncodedFormEntity(parameters, StandardCharsets.UTF_8);
                 res.setEntity(formEntity);
 
                 return res;

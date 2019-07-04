@@ -52,7 +52,7 @@ public class SAML11Signature implements SAMLAbstractSignature {
 
     private static final PicketLinkLogger logger = PicketLinkLoggerFactory.getLogger();
 
-    private final static String CONDITIONS = "Conditions";
+    private static final String CONDITIONS = "Conditions";
 
     private String signatureMethod = SignatureMethod.RSA_SHA1;
 
@@ -92,7 +92,6 @@ public class SAML11Signature implements SAMLAbstractSignature {
      * Set to false, if you do not want to include keyinfo in the signature
      *
      * @param val
-     *
      * @since v2.0.1
      */
     public void setSignatureIncludeKeyInfo(boolean val) {
@@ -104,11 +103,10 @@ public class SAML11Signature implements SAMLAbstractSignature {
     /**
      * Set the {@link X509Certificate} if you desire
      * to have the SignedInfo have X509 Data
-     *
+     * <p>
      * This method needs to be called before any of the sign methods.
      *
      * @param x509Certificate
-     *
      * @since v2.5.0
      */
     @Override
@@ -120,9 +118,7 @@ public class SAML11Signature implements SAMLAbstractSignature {
      * Sign an Document at the root
      *
      * @param keyPair Key Pair
-     *
      * @return
-     *
      * @throws ParserConfigurationException
      * @throws XMLSignatureException
      * @throws MarshalException
@@ -158,7 +154,6 @@ public class SAML11Signature implements SAMLAbstractSignature {
      * @param samlDocument
      * @param keypair
      * @param keyName
-     *
      * @throws org.keycloak.saml.common.exceptions.ProcessingException
      */
     @Override
@@ -177,9 +172,7 @@ public class SAML11Signature implements SAMLAbstractSignature {
      *
      * @param signedDocument
      * @param publicKey
-     *
      * @return
-     *
      * @throws ProcessingException
      */
     public boolean validate(Document signedDocument, PublicKey publicKey) throws ProcessingException {
@@ -191,6 +184,7 @@ public class SAML11Signature implements SAMLAbstractSignature {
             throw new ProcessingException(logger.signatureError(me));
         }
     }
+
     @Override
     public Node getNextSiblingOfIssuer(Document doc) {
         return getNextSiblingOfConditions(doc);
@@ -200,7 +194,6 @@ public class SAML11Signature implements SAMLAbstractSignature {
      * Given a {@link Document}, find the {@link Node} which is the sibling of the Issuer element
      *
      * @param doc
-     *
      * @return
      */
     public Node getNextSiblingOfConditions(Document doc) {

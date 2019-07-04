@@ -93,17 +93,17 @@ public class SAMLScriptBasedMapper extends AbstractWsfedProtocolMapper implement
     }
 
     /**
-     *  This method attaches one or many attributes to the passed attribute statement.
-     *  To obtain the attribute values, it executes the mapper's script and returns attaches the returned value to the
-     *  attribute.
-     *  If the returned attribute is an Array or is iterable, the mapper will either return multiple attributes, or an
-     *  attribute with multiple values. The variant chosen depends on the configuration of the mapper
+     * This method attaches one or many attributes to the passed attribute statement.
+     * To obtain the attribute values, it executes the mapper's script and returns attaches the returned value to the
+     * attribute.
+     * If the returned attribute is an Array or is iterable, the mapper will either return multiple attributes, or an
+     * attribute with multiple values. The variant chosen depends on the configuration of the mapper
      *
      * @param attributeStatement The attribute statements to be added to a token
-     * @param mappingModel The mapping model reflects the values that are actually input in the GUI
-     * @param session The current session
-     * @param userSession The current user session
-     * @param clientSession The current client session
+     * @param mappingModel       The mapping model reflects the values that are actually input in the GUI
+     * @param session            The current session
+     * @param userSession        The current user session
+     * @param clientSession      The current client session
      */
     @Override
     public void transformAttributeStatement(AttributeStatementType attributeStatement, ProtocolMapperModel mappingModel, KeycloakSession session, UserSessionModel userSession, AuthenticatedClientSessionModel clientSession) {
@@ -120,7 +120,7 @@ public class SAMLScriptBasedMapper extends AbstractWsfedProtocolMapper implement
         EvaluatableScriptAdapter script = scripting.prepareEvaluatableScript(scriptModel);
         Object attributeValue;
         try {
-            attributeValue = script.eval((bindings) -> {
+            attributeValue = script.eval(bindings -> {
                 bindings.put("user", user);
                 bindings.put("realm", realm);
                 bindings.put("clientSession", clientSession);
@@ -128,18 +128,18 @@ public class SAMLScriptBasedMapper extends AbstractWsfedProtocolMapper implement
                 bindings.put("keycloakSession", session);
             });
             //If the result is a an array or is iterable, get all values
-            if (attributeValue.getClass().isArray()){
-                attributeValue = Arrays.asList((Object[])attributeValue);
+            if (attributeValue.getClass().isArray()) {
+                attributeValue = Arrays.asList((Object[]) attributeValue);
             }
             if (attributeValue instanceof Iterable) {
                 if (singleAttribute) {
                     AttributeType singleAttributeType = AttributeStatementHelper.createAttributeType(mappingModel);
                     attributeStatement.addAttribute(new AttributeStatementType.ASTChoiceType(singleAttributeType));
-                    for (Object value : (Iterable)attributeValue) {
+                    for (Object value : (Iterable<?>) attributeValue) {
                         singleAttributeType.addAttributeValue(value);
                     }
                 } else {
-                    for (Object value : (Iterable)attributeValue) {
+                    for (Object value : (Iterable<?>) attributeValue) {
                         AttributeStatementHelper.addAttribute(attributeStatement, mappingModel, value.toString());
                     }
                 }
@@ -157,12 +157,12 @@ public class SAMLScriptBasedMapper extends AbstractWsfedProtocolMapper implement
      * Creates an protocol mapper model for the this script based mapper. This mapper model is meant to be used for
      * testing, as normally such objects are created in a different manner through the keycloak GUI.
      *
-     * @param name The name of the mapper (this has no functional use)
+     * @param name              The name of the mapper (this has no functional use)
      * @param samlAttributeName The name of the attribute in the SAML attribute
-     * @param nameFormat can be "basic", "URI reference" or "unspecified"
-     * @param friendlyName a display name, only useful for the keycloak GUI
-     * @param script the javascript to be executed by the mapper
-     * @param singleAttribute If true, all groups will be stored under one attribute with multiple attribute values
+     * @param nameFormat        can be "basic", "URI reference" or "unspecified"
+     * @param friendlyName      a display name, only useful for the keycloak GUI
+     * @param script            the javascript to be executed by the mapper
+     * @param singleAttribute   If true, all groups will be stored under one attribute with multiple attribute values
      * @return a Protocol Mapper for a group mapping
      */
     public static ProtocolMapperModel create(String name, String samlAttributeName, String nameFormat, String friendlyName, String script, boolean singleAttribute) {

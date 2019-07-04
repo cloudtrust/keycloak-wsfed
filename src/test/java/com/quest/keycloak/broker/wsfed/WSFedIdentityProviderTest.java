@@ -17,14 +17,17 @@
 package com.quest.keycloak.broker.wsfed;
 
 import com.quest.keycloak.common.wsfed.MockHelper;
+import com.quest.keycloak.common.wsfed.TestHelpers.*;
 import com.quest.keycloak.common.wsfed.WSFedConstants;
+
+import io.cloudtrust.keycloak.exceptions.CtRuntimeException;
+
 import org.apache.http.HttpStatus;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.keycloak.broker.provider.AuthenticationRequest;
-import org.keycloak.broker.provider.BrokeredIdentityContext;
 import org.keycloak.broker.provider.IdentityBrokerException;
 import org.keycloak.broker.provider.IdentityProvider;
 import org.keycloak.broker.provider.util.IdentityBrokerState;
@@ -44,11 +47,14 @@ import javax.ws.rs.core.Response;
 import static com.quest.keycloak.common.wsfed.TestHelpers.*;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.*;
+import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.*;
 
 public class WSFedIdentityProviderTest {
-    @Mock private EventBuilder event;
-    @Mock private WSFedIdentityProviderConfig config;
+    @Mock
+    private EventBuilder event;
+    @Mock
+    private WSFedIdentityProviderConfig config;
 
     private MockHelper mockHelper;
     private WSFedIdentityProvider identityProvider;
@@ -78,7 +84,7 @@ public class WSFedIdentityProviderTest {
 
     @Test
     public void testPerformLoginException() throws Exception {
-        doThrow(new RuntimeException("Message")).when(config).getWsFedRealm();
+        doThrow(new CtRuntimeException("Message")).when(config).getWsFedRealm();
 
         expectedException.expect(IdentityBrokerException.class);
         expectedException.expectMessage(equalTo("Could not create authentication request."));

@@ -41,7 +41,7 @@ public class WSFedIdentityProviderFactory extends AbstractIdentityProviderFactor
     @Override
     public Map<String, String> parseConfig(KeycloakSession session, InputStream inputStream) {
         //TODO: Implement parsing of metadata
-        return new HashMap<String, String>();
+        return new HashMap<>();
     }
 
     @Override

@@ -16,7 +16,7 @@
 
 package com.quest.keycloak.protocol.wsfed.builders;
 
-import java.io.UnsupportedEncodingException;
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateEncodingException;
@@ -24,6 +24,7 @@ import java.security.cert.X509Certificate;
 import java.util.Set;
 
 import com.quest.keycloak.protocol.wsfed.mappers.WSFedOIDCAccessTokenMapper;
+
 import org.keycloak.common.util.Base64Url;
 import org.keycloak.crypto.Algorithm;
 import org.keycloak.crypto.AsymmetricSignatureSignerContext;
@@ -117,10 +118,7 @@ public class WSFedOIDCAccessTokenBuilder {
             builder.x5t(activeKey.getCertificate());
         }
 
-        String encodedToken = builder.jsonContent(token)
-                                     .sign(new AsymmetricSignatureSignerContext(activeKey));
-
-        return encodedToken;
+        return builder.jsonContent(token).sign(new AsymmetricSignatureSignerContext(activeKey));
     }
 
     public boolean isX5tIncluded() {
@@ -173,11 +171,7 @@ public class WSFedOIDCAccessTokenBuilder {
             if (contentType != null) builder.append(",\"cty\":\"").append(contentType).append("\"");
             if (x5t != null) builder.append(",\"x5t\":\"").append(x5t).append("\"");
             builder.append("}");
-            try {
-                return Base64Url.encode(builder.toString().getBytes("UTF-8"));
-            } catch (UnsupportedEncodingException e) {
-                throw new RuntimeException(e);
-            }
+            return Base64Url.encode(builder.toString().getBytes(StandardCharsets.UTF_8));
         }
     }
 
@@ -188,7 +182,7 @@ public class WSFedOIDCAccessTokenBuilder {
         for (ProtocolMapperModel mapping : mappings) {
 
             ProtocolMapper mapper = (ProtocolMapper)sessionFactory.getProviderFactory(ProtocolMapper.class, mapping.getProtocolMapper());
-            if (mapper == null || !(mapper instanceof WSFedOIDCAccessTokenMapper)) continue;
+            if (!(mapper instanceof WSFedOIDCAccessTokenMapper)) continue;
             token = ((WSFedOIDCAccessTokenMapper)mapper).transformAccessToken(token, mapping, session, userSession, clientSession);
 
         }

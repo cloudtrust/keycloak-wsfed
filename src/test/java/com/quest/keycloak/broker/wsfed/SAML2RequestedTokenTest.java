@@ -21,6 +21,9 @@ import com.quest.keycloak.common.wsfed.WSFedConstants;
 import com.quest.keycloak.protocol.wsfed.builders.RequestSecurityTokenResponseBuilder;
 import com.quest.keycloak.common.wsfed.MockHelper;
 import com.quest.keycloak.protocol.wsfed.builders.WSFedSAML2AssertionTypeBuilder;
+
+import io.cloudtrust.keycloak.exceptions.CtRuntimeException;
+
 import org.junit.Test;
 import org.keycloak.dom.saml.v2.assertion.AssertionType;
 import org.keycloak.dom.saml.v2.assertion.NameIDType;
@@ -78,7 +81,7 @@ public class SAML2RequestedTokenTest {
             generator.initialize(2048);
             keyPair = generator.generateKeyPair();
         } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException(e);
+            throw new CtRuntimeException(e);
         }
 
         EventBuilder event = mock(EventBuilder.class);

@@ -2,7 +2,10 @@ package com.quest.keycloak.protocol.wsfed.mappers;
 
 import com.quest.keycloak.protocol.wsfed.WSFedLoginProtocol;
 import org.keycloak.dom.saml.v2.assertion.AttributeStatementType;
-import org.keycloak.models.*;
+import org.keycloak.models.AuthenticatedClientSessionModel;
+import org.keycloak.models.KeycloakSession;
+import org.keycloak.models.ProtocolMapperModel;
+import org.keycloak.models.UserSessionModel;
 import org.keycloak.protocol.saml.mappers.GroupMembershipMapper;
 import org.keycloak.provider.ProviderConfigProperty;
 
@@ -19,7 +22,7 @@ public class SAMLGroupMembershipMapper extends AbstractWsfedProtocolMapper imple
 
     public static final String PROVIDER_ID = "wsfed-saml-group-membership-mapper";
     //The mapper can be static as it holds no state. No reason to have multiple instances
-    private final static GroupMembershipMapper mapper;
+    private static final GroupMembershipMapper mapper;
     private static final List<ProviderConfigProperty> configProperties = new ArrayList<>();
 
     static {
@@ -60,10 +63,10 @@ public class SAMLGroupMembershipMapper extends AbstractWsfedProtocolMapper imple
      * to get the values to add to the attributes.
      *
      * @param attributeStatement The attribute statements to be added to a token
-     * @param mappingModel The mapping model reflects the values that are actually input in the GUI
-     * @param session The current session
-     * @param userSession The current user session
-     * @param clientSession The current client session
+     * @param mappingModel       The mapping model reflects the values that are actually input in the GUI
+     * @param session            The current session
+     * @param userSession        The current user session
+     * @param clientSession      The current client session
      */
     @Override
     public void transformAttributeStatement(AttributeStatementType attributeStatement, ProtocolMapperModel mappingModel, KeycloakSession session, UserSessionModel userSession, AuthenticatedClientSessionModel clientSession) {
@@ -74,15 +77,15 @@ public class SAMLGroupMembershipMapper extends AbstractWsfedProtocolMapper imple
      * Creates an protocol mapper model for the this group membership mapper. This mapper model is meant to be used for
      * testing, as normally such objects are created in a different manner through the keycloak GUI.
      *
-     * @param name The name of the mapper (this has no functional use)
+     * @param name              The name of the mapper (this has no functional use)
      * @param samlAttributeName The name of the attribute in the SAML attribute
-     * @param nameFormat can be "basic", "URI reference" or "unspecified"
-     * @param friendlyName a display name, only useful for the keycloak GUI
-     * @param singleAttribute If true, all groups will be stored under one attribute with multiple attribute values
+     * @param nameFormat        can be "basic", "URI reference" or "unspecified"
+     * @param friendlyName      a display name, only useful for the keycloak GUI
+     * @param singleAttribute   If true, all groups will be stored under one attribute with multiple attribute values
      * @return a Protocol Mapper for a group mapping
      */
     public static ProtocolMapperModel create(String name, String samlAttributeName, String nameFormat, String friendlyName, boolean singleAttribute) {
-        ProtocolMapperModel model = mapper.create(name, samlAttributeName, nameFormat, friendlyName, singleAttribute);
+        ProtocolMapperModel model = GroupMembershipMapper.create(name, samlAttributeName, nameFormat, friendlyName, singleAttribute);
         model.setProtocolMapper(PROVIDER_ID);
         model.setProtocol(WSFedLoginProtocol.LOGIN_PROTOCOL);
         return model;

@@ -18,27 +18,26 @@ package com.quest.keycloak.broker.wsfed.mappers;
 
 import com.quest.keycloak.broker.wsfed.WSFedEndpoint;
 import com.quest.keycloak.broker.wsfed.WSFedIdentityProviderFactory;
+import com.quest.keycloak.common.wsfed.utils.AttributeUtils;
 import org.jboss.logging.Logger;
-import org.keycloak.broker.provider.*;
+import org.keycloak.broker.provider.AbstractIdentityProviderMapper;
+import org.keycloak.broker.provider.BrokeredIdentityContext;
+import org.keycloak.broker.provider.ConfigConstants;
+import org.keycloak.broker.provider.IdentityBrokerException;
 import org.keycloak.dom.saml.v2.assertion.AssertionType;
-import org.keycloak.dom.saml.v2.assertion.AttributeStatementType;
-import org.keycloak.dom.saml.v2.assertion.AttributeType;
-import org.keycloak.models.IdentityProviderMapperModel;
-import org.keycloak.models.KeycloakSession;
-import org.keycloak.models.RealmModel;
-import org.keycloak.models.RoleModel;
-import org.keycloak.models.UserModel;
+import org.keycloak.models.*;
 import org.keycloak.models.utils.KeycloakModelUtils;
 import org.keycloak.provider.ProviderConfigProperty;
+
 import java.util.ArrayList;
 import java.util.List;
 
 public class AttributeToRoleMapper extends AbstractIdentityProviderMapper {
     protected static final Logger logger = Logger.getLogger(AttributeToRoleMapper.class);
 
-    public static final String[] COMPATIBLE_PROVIDERS = {WSFedIdentityProviderFactory.PROVIDER_ID};
+    private static final String[] COMPATIBLE_PROVIDERS = {WSFedIdentityProviderFactory.PROVIDER_ID};
 
-    private static final List<ProviderConfigProperty> configProperties = new ArrayList<ProviderConfigProperty>();
+    private static final List<ProviderConfigProperty> configProperties = new ArrayList<>();
 
     public static final String ATTRIBUTE_NAME = "attribute.name";
     public static final String ATTRIBUTE_FRIENDLY_NAME = "attribute.friendly.name";
@@ -119,15 +118,14 @@ public class AttributeToRoleMapper extends AbstractIdentityProviderMapper {
         try {
             Object token = context.getContextData().get(WSFedEndpoint.WSFED_REQUESTED_TOKEN);
 
-            if(token instanceof AssertionType) {
+            if (token instanceof AssertionType) {
                 return isAttributePresent((AssertionType) token, name, friendly, desiredValue);
             }
             //TODO: else if token type == JWSInput
             else {
                 logger.warn("WS-Fed attribute role mapper doesn't currently support this token type.");
             }
-        }
-        catch(Exception ex) {
+        } catch (Exception ex) {
             logger.warn("Unable to parse token response", ex);
         }
 
@@ -135,24 +133,7 @@ public class AttributeToRoleMapper extends AbstractIdentityProviderMapper {
     }
 
     protected boolean isAttributePresent(AssertionType assertion, String name, String friendly, String desiredValue) {
-        for (AttributeStatementType statement : assertion.getAttributeStatements()) {
-            for (AttributeStatementType.ASTChoiceType choice : statement.getAttributes()) {
-                AttributeType attr = choice.getAttribute();
-                if (name != null && !name.equals(attr.getName())){
-                    continue;
-                }
-                if (friendly != null && !friendly.equals(attr.getFriendlyName())){
-                    continue;
-                }
-                for (Object val : attr.getAttributeValue()) {
-                    if (val.equals(desiredValue)){
-                        return true;
-                    }
-                }
-            }
-        }
-
-        return false;
+        return AttributeUtils.findAttributeValue(assertion, name, friendly, a -> a.getAttributeValue().stream().anyMatch(o -> o.equals(desiredValue))) != null;
     }
 
     @Override
@@ -163,8 +144,7 @@ public class AttributeToRoleMapper extends AbstractIdentityProviderMapper {
 
         if (isAttributePresent(mapperModel, context)) {
             user.grantRole(role);
-        }
-        else {
+        } else {
             user.deleteRoleMapping(role);
         }
     }

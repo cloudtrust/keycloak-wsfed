@@ -16,25 +16,26 @@
 
 package com.quest.keycloak.broker.wsfed;
 
+import com.quest.keycloak.common.wsfed.MockHelper;
 import com.quest.keycloak.common.wsfed.TestHelpers;
 import com.quest.keycloak.common.wsfed.WSFedConstants;
 import com.quest.keycloak.protocol.wsfed.builders.RequestSecurityTokenResponseBuilder;
-import com.quest.keycloak.common.wsfed.MockHelper;
+
+import io.cloudtrust.keycloak.exceptions.CtRuntimeException;
+
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
-import org.keycloak.common.ClientConnection;
 import org.keycloak.broker.provider.BrokeredIdentityContext;
 import org.keycloak.broker.provider.IdentityBrokerException;
 import org.keycloak.broker.provider.IdentityProvider;
+import org.keycloak.common.ClientConnection;
 import org.keycloak.common.util.CertificateUtils;
 import org.keycloak.common.util.PemUtils;
 import org.keycloak.events.Errors;
 import org.keycloak.events.EventBuilder;
-import org.keycloak.keys.DefaultKeyManager;
 import org.keycloak.models.KeyManager;
-import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserSessionModel;
 import org.keycloak.saml.common.ErrorCodes;
 import org.keycloak.saml.common.exceptions.ConfigurationException;
@@ -62,22 +63,29 @@ import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
-import java.security.cert.X509Certificate;
 
+import static com.quest.keycloak.common.wsfed.TestHelpers.*;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.*;
+import static org.mockito.Matchers.*;
 import static org.mockito.Mockito.*;
-import static com.quest.keycloak.common.wsfed.TestHelpers.*;
 
 public class WSFedEndpointTest {
-    @Mock private EventBuilder event;
-    @Mock private WSFedIdentityProviderConfig config;
-    @Mock private IdentityProvider.AuthenticationCallback callback;
-    @Mock private WSFedIdentityProvider provider;
-    @Mock private KeyManager junkKeyManager;
+    @Mock
+    private EventBuilder event;
+    @Mock
+    private WSFedIdentityProviderConfig config;
+    @Mock
+    private IdentityProvider.AuthenticationCallback callback;
+    @Mock
+    private WSFedIdentityProvider provider;
+    @Mock
+    private KeyManager junkKeyManager;
 
-    @Mock private ClientConnection clientConnection;
-    @Mock private HttpHeaders headers;
+    @Mock
+    private ClientConnection clientConnection;
+    @Mock
+    private HttpHeaders headers;
 
     private MockHelper mockHelper;
     private WSFedEndpoint endpoint;
@@ -265,7 +273,7 @@ public class WSFedEndpointTest {
     }
 
     @Test
-    public void testHandleLoginResponseThrowsIdentityBrokerException() throws Exception{
+    public void testHandleLoginResponseThrowsIdentityBrokerException() throws Exception {
         RequestedToken token = mock(RequestedToken.class);
         when(token.getId()).thenThrow(new NullPointerException("Expected null argument exception"));
 
@@ -320,7 +328,7 @@ public class WSFedEndpointTest {
         when(token.getSessionIndex()).thenReturn("123");
         when(token.getUsername()).thenReturn("username");
 
-        when(callback.authenticated(any(BrokeredIdentityContext.class))).thenThrow(new RuntimeException("Exception"));
+        when(callback.authenticated(any(BrokeredIdentityContext.class))).thenThrow(new CtRuntimeException("Exception"));
 
         expectedException.expect(IdentityBrokerException.class);
         expectedException.expectMessage(equalTo("Could not process response from WS-Fed identity provider."));
@@ -389,13 +397,12 @@ public class WSFedEndpointTest {
             generator.initialize(2048);
             keyPair = generator.generateKeyPair();
         } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException(e);
+            throw new CtRuntimeException(e);
         }
-        X509Certificate certificate = null;
         try {
-            certificate = CertificateUtils.generateV1SelfSignedCertificate(keyPair, "junk");
+            CertificateUtils.generateV1SelfSignedCertificate(keyPair, "junk");
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            throw new CtRuntimeException(e);
         }
         RequestSecurityTokenResponseBuilder builder = SAML2RequestedTokenTest.generateRequestSecurityTokenResponseBuilder(mockHelper);
         when(config.isValidateSignature()).thenReturn(true);

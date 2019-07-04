@@ -16,28 +16,6 @@
 
 package com.quest.keycloak.common.wsfed;
 
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-
-import java.net.URI;
-import java.security.KeyPair;
-import java.security.KeyPairGenerator;
-import java.security.NoSuchAlgorithmException;
-import java.security.cert.X509Certificate;
-import java.util.*;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
-import javax.crypto.SecretKey;
-import javax.crypto.spec.SecretKeySpec;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.UriBuilder;
-import javax.ws.rs.core.UriInfo;
-
 import org.keycloak.OAuth2Constants;
 import org.keycloak.common.ClientConnection;
 import org.keycloak.common.enums.SslRequired;
@@ -48,7 +26,6 @@ import org.keycloak.crypto.KeyUse;
 import org.keycloak.crypto.KeyWrapper;
 import org.keycloak.forms.login.LoginFormsProvider;
 import org.keycloak.models.*;
-import org.keycloak.models.KeyManager.ActiveHmacKey;
 import org.keycloak.protocol.ProtocolMapper;
 import org.keycloak.scripting.DefaultScriptingProviderFactory;
 import org.keycloak.scripting.ScriptingProvider;
@@ -63,6 +40,23 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
+
+import io.cloudtrust.keycloak.exceptions.CtRuntimeException;
+
+import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
+import javax.ws.rs.core.Response;
+import javax.ws.rs.core.UriBuilder;
+import javax.ws.rs.core.UriInfo;
+import java.net.URI;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.NoSuchAlgorithmException;
+import java.security.cert.X509Certificate;
+import java.util.*;
+
+import static org.mockito.Matchers.*;
+import static org.mockito.Mockito.*;
 
 public class MockHelper {
     private String baseUri = null;
@@ -137,10 +131,11 @@ public class MockHelper {
         return this;
     }
 
-    protected void initializeSessionMock(){
+    protected void initializeSessionMock() {
         when(session.keys()).thenReturn(keyManager);
 
     }
+
     protected void initializeUriInfo() {
         //We have to use thenAnswer so that the UriBuilder gets created on each call vs at mock time.
         when(getUriInfo().getBaseUriBuilder()).
@@ -163,9 +158,9 @@ public class MockHelper {
         generateActiveRealmKeys(keyManager, activeKey, realm);
     }
 
-    public static void generateActiveRealmKeys(KeyManager keyManager, KeyManager.ActiveRsaKey activeKey, RealmModel realm){
-    	if (keyManager.getActiveKey(realm, KeyUse.SIG, Algorithm.RS256) != null) {
-    	    return;
+    public static void generateActiveRealmKeys(KeyManager keyManager, KeyManager.ActiveRsaKey activeKey, RealmModel realm) {
+        if (keyManager.getActiveKey(realm, KeyUse.SIG, Algorithm.RS256) != null) {
+            return;
         }
         KeyPair keyPair = null;
         try {
@@ -173,13 +168,13 @@ public class MockHelper {
             generator.initialize(2048);
             keyPair = generator.generateKeyPair();
         } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException(e);
+            throw new CtRuntimeException(e);
         }
         X509Certificate certificate = null;
         try {
             certificate = CertificateUtils.generateV1SelfSignedCertificate(keyPair, realm.getName());
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            throw new CtRuntimeException(e);
         }
 
         KeyWrapper activeKeyWrapper = new KeyWrapper();
@@ -210,7 +205,7 @@ public class MockHelper {
         when(getClient().getClientId()).thenReturn(getClientId());
         when(getClient().isEnabled()).thenReturn(true);
 
-        for(Map.Entry<String, String> entry : getClientAttributes().entrySet()) {
+        for (Map.Entry<String, String> entry : getClientAttributes().entrySet()) {
             when(getClient().getAttribute(entry.getKey())).thenReturn(entry.getValue());
         }
 
@@ -287,7 +282,7 @@ public class MockHelper {
     }
 
     protected void initializeKeycloakSessionFactoryMock() {
-        for(Map.Entry<ProtocolMapperModel, ProtocolMapper> mapper : getProtocolMappers().entrySet()) {
+        for (Map.Entry<ProtocolMapperModel, ProtocolMapper> mapper : getProtocolMappers().entrySet()) {
             when(getSessionFactory().getProviderFactory(ProtocolMapper.class, mapper.getKey().getProtocolMapper())).thenReturn(mapper.getValue());
         }
     }
@@ -302,7 +297,7 @@ public class MockHelper {
         when(client.getRealm()).thenReturn(realm);
         when(client.isFullScopeAllowed()).thenReturn(true);
 
-        for(Map.Entry<String, String> entry : getClientSessionNotes().entrySet()) {
+        for (Map.Entry<String, String> entry : getClientSessionNotes().entrySet()) {
             when(getClientSessionModel().getNote(entry.getKey())).thenReturn(entry.getValue());
         }
 
@@ -319,7 +314,7 @@ public class MockHelper {
         List<RoleModel> roles = Arrays.asList(role1, role2, role3, role4);
         when(user.getRoleMappings()).thenReturn(new HashSet<RoleModel>(roles));
         when(realm.getRoleById(anyString())).thenReturn(null);
-        for(RoleModel role: roles) {
+        for (RoleModel role : roles) {
             when(role.getContainer()).thenReturn(client);
             when(role.isComposite()).thenReturn(false);
             when(realm.getRoleById(role.getName())).thenReturn(role);
@@ -343,7 +338,7 @@ public class MockHelper {
         Map<String, AuthenticatedClientSessionModel> map = Collections.singletonMap(getClient().getId(), getClientSessionModel());
         when(getUserSessionModel().getAuthenticatedClientSessions()).thenReturn(map);
         doReturn(getUser().getId()).when(getUserSessionModel()).getBrokerUserId();
-        when (getUserSessionModel().getRealm()).thenReturn(getRealm());
+        when(getUserSessionModel().getRealm()).thenReturn(getRealm());
     }
 
     public String getBaseUri() {

@@ -47,21 +47,19 @@ public class WSFedResponseBuilderTest {
 
     @Test
     public void testEscapeAttribute() throws Exception {
-        WSFedResponseBuilder builder = new WSFedResponseBuilder();
-
-        String value = builder.escapeAttribute(new String(new char[] { (char)128 }));
+        String value = WSFedResponseBuilder.escapeAttribute(new String(new char[] { (char)128 }));
         assertEquals("&#" + 128 + ";", value);
 
-        value = builder.escapeAttribute(new String("\""));
+        value = WSFedResponseBuilder.escapeAttribute(new String("\""));
         assertEquals("&#" + (int)'"' + ";", value);
 
-        value = builder.escapeAttribute(new String("<"));
+        value = WSFedResponseBuilder.escapeAttribute(new String("<"));
         assertEquals("&#" + (int)'<' + ";", value);
 
-        value = builder.escapeAttribute(new String(">"));
+        value = WSFedResponseBuilder.escapeAttribute(new String(">"));
         assertEquals("&#" + (int)'>' + ";", value);
 
-        value = builder.escapeAttribute(new String("D"));
+        value = WSFedResponseBuilder.escapeAttribute(new String("D"));
         assertEquals("D", value);
     }
 
