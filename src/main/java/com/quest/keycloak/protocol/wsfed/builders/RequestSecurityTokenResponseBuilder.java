@@ -27,6 +27,7 @@ import org.keycloak.dom.saml.v1.assertion.SAML11AssertionType;
 import org.keycloak.dom.saml.v2.assertion.AssertionType;
 import org.keycloak.saml.RandomSecret;
 import org.keycloak.saml.SignatureAlgorithm;
+import org.keycloak.saml.common.constants.GeneralConstants;
 import org.keycloak.saml.common.exceptions.ConfigurationException;
 import org.keycloak.saml.common.exceptions.ProcessingException;
 import org.keycloak.saml.common.util.Base64;
@@ -59,6 +60,7 @@ import javax.xml.datatype.XMLGregorianCalendar;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.URI;
+import java.nio.charset.Charset;
 import java.security.KeyPair;
 import java.security.PublicKey;
 import java.security.cert.X509Certificate;
@@ -342,7 +344,7 @@ public class RequestSecurityTokenResponseBuilder extends WSFedResponseBuilder {
         RequestSecurityTokenResponseCollection coll = new RequestSecurityTokenResponseCollection();
         coll.addRequestSecurityTokenResponse(response);
         writer.write(coll);
-        return new String(bos.toByteArray());
+        return new String(bos.toByteArray(), Charset.forName(GeneralConstants.SAML_CHARSET_NAME));
     }
 
     /**
