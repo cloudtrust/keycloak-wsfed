@@ -178,11 +178,11 @@ public class MockHelper {
         }
 
         KeyWrapper activeKeyWrapper = new KeyWrapper();
-        activeKeyWrapper.setVerifyKey(keyPair.getPublic());
+        activeKeyWrapper.setPublicKey(keyPair.getPublic());
         activeKeyWrapper.setAlgorithm("RS256");
         activeKeyWrapper.setCertificate(certificate);
         activeKeyWrapper.setKid(UUID.randomUUID().toString());
-        activeKeyWrapper.setSignKey(keyPair.getPrivate());
+        activeKeyWrapper.setPrivateKey(keyPair.getPrivate());
         activeKeyWrapper.setStatus(KeyStatus.ACTIVE);
         when(keyManager.getActiveKey(eq(realm), any(), eq(Algorithm.RS256))).thenReturn(activeKeyWrapper);
 

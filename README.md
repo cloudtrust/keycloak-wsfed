@@ -13,7 +13,7 @@ currently supported. However, in its current capacity the WS-Fed protocol can be
 The WS-Fed protocol does not specify the format of the tokens, but this module supports SAML 2.0 and SAML 1.1 tokens 
 for its operations. 
 
-This module is currently working on 6.0.1 (check tags for compatibility with previous Keycloak versions)
+This module is currently working on 7.0.0 (check tags for compatibility with previous Keycloak versions)
 
 ## How to Install
 
@@ -29,7 +29,7 @@ install -d -v -m755 /opt/keycloak/modules/system/layers/wsfed -o keycloak -g key
 install -d -v -m755 /opt/keycloak/modules/system/layers/wsfed/com/quest/keycloak-wsfed/main/ -o keycloak -g keycloak
 
 #Install jar
-install -v -m0755 -o keycloak -g keycloak -D target/keycloak-wsfed-6.0.1.jar /opt/keycloak/modules/system/layers/wsfed/com/quest/keycloak-wsfed/main/
+install -v -m0755 -o keycloak -g keycloak -D target/keycloak-wsfed-7.0.0.jar /opt/keycloak/modules/system/layers/wsfed/com/quest/keycloak-wsfed/main/
 
 #Install module file
 install -v -m0755 -o keycloak -g keycloak -D module.xml /opt/keycloak/modules/system/layers/wsfed/com/quest/keycloak-wsfed/main/

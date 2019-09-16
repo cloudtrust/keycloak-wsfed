@@ -218,7 +218,7 @@ public class SAML2RequestedToken implements RequestedToken {
             Object assertion = parser.parse(bis);
 
             if (assertion instanceof EncryptedAssertionType) {
-                PrivateKey privateKey = (PrivateKey)session.keys().getActiveKey(realm, KeyUse.SIG, Algorithm.RS256).getSignKey();
+                PrivateKey privateKey = (PrivateKey)session.keys().getActiveKey(realm, KeyUse.SIG, Algorithm.RS256).getPrivateKey();
                 assertionType = decryptAssertion((EncryptedAssertionType) assertion, privateKey);
             } else {
                 assertionType = (AssertionType) assertion;

@@ -212,7 +212,7 @@ public class WSFedLoginProtocol implements LoginProtocol {
                     .setContext(context)
                     .setTokenExpiration(realm.getAccessTokenLifespan())
                     .setRequestIssuer(clientSession.getClient().getClientId())
-                    .setSigningKeyPair(new KeyPair((PublicKey)activeKey.getVerifyKey(), (PrivateKey)activeKey.getSignKey()))
+                    .setSigningKeyPair(new KeyPair((PublicKey)activeKey.getPublicKey(), (PrivateKey)activeKey.getPrivateKey()))
                     .setSigningCertificate(activeKey.getCertificate())
                     .setSigningKeyPairId(activeKey.getKid());
 
