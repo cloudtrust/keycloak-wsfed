@@ -316,7 +316,7 @@ public class WSFedLoginProtocol implements LoginProtocol {
         if (!client.getRedirectUris().isEmpty()) {
             redirectUri = client.getRedirectUris().iterator().next();
         }
-        String logoutUrl = RedirectUtils.verifyRedirectUri(uriInfo, redirectUri, realm, client);
+        String logoutUrl = RedirectUtils.verifyRedirectUri(session, redirectUri, client);
         if (logoutUrl == null) {
             logger.warn("Can't do backchannel logout. No SingleLogoutService POST Binding registered for client: " + client.getClientId());
             return;
@@ -367,7 +367,7 @@ public class WSFedLoginProtocol implements LoginProtocol {
         if (!client.getRedirectUris().isEmpty()) {
             redirectUri = client.getRedirectUris().iterator().next();
         }
-        String logoutUrl = RedirectUtils.verifyRedirectUri(uriInfo, redirectUri, realm, client);
+        String logoutUrl = RedirectUtils.verifyRedirectUri(session, redirectUri, client);
         if (logoutUrl == null) {
             logger.error("Can't finish WS-Fed logout as there is no logout binding set. Has the redirect URI being used been added to the valid redirect URIs in the client?");
             return ErrorPage.error(session, null, Response.Status.BAD_REQUEST, Messages.INVALID_REDIRECT_URI);

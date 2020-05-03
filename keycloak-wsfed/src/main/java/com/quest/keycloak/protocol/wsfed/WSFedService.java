@@ -279,7 +279,7 @@ public class WSFedService extends AuthorizationEndpointBase {
         event.event(EventType.LOGIN);
 
         //Essentially ACS
-        String redirect = RedirectUtils.verifyRedirectUri(session.getContext().getUri(), params.getWsfed_reply(), realm, client);
+        String redirect = RedirectUtils.verifyRedirectUri(session, params.getWsfed_reply(), client);
 
         if (redirect == null && !client.getRedirectUris().isEmpty()) {
             //wreply is optional so if it's not specified use the base url
@@ -315,9 +315,9 @@ public class WSFedService extends AuthorizationEndpointBase {
 
         String logoutUrl;
         if (client != null) {
-            logoutUrl = RedirectUtils.verifyRedirectUri(session.getContext().getUri(), params.getWsfed_reply(), realm, client);
+            logoutUrl = RedirectUtils.verifyRedirectUri(session, params.getWsfed_reply(), client);
         } else {
-            logoutUrl = RedirectUtils.verifyRealmRedirectUri(session.getContext().getUri(), params.getWsfed_reply(), realm);
+            logoutUrl = RedirectUtils.verifyRealmRedirectUri(session, params.getWsfed_reply());
         }
 
         AuthenticationManager.AuthResult authResult = authenticateIdentityCookie();

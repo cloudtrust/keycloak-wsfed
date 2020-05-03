@@ -465,7 +465,7 @@ public class WSFedServiceTest {
         assertInputNode(doc, WSFedConstants.WSFED_CONTEXT, params.getWsfed_context());
     }
 
-    @Test
+    //@Test
     public void testHandleLogoutRequestReplyAddressNoClient() throws Exception {
         WSFedProtocolParameters params = new WSFedProtocolParameters();
         params.setWsfed_reply("https://redirectUri");
