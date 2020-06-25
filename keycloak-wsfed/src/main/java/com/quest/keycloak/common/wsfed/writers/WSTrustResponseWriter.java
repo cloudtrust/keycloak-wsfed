@@ -37,6 +37,7 @@ import org.picketlink.identity.federation.ws.trust.EntropyType;
 import org.picketlink.identity.federation.ws.trust.RenewingType;
 import org.picketlink.identity.federation.ws.trust.RequestedProofTokenType;
 import org.picketlink.identity.federation.ws.trust.RequestedReferenceType;
+import org.picketlink.identity.federation.ws.trust.RequestedSecurityTokenType;
 import org.picketlink.identity.federation.ws.trust.StatusType;
 import org.picketlink.identity.federation.ws.wss.secext.BinarySecurityTokenType;
 import org.w3c.dom.Element;
@@ -44,6 +45,7 @@ import org.w3c.dom.Element;
 import javax.xml.stream.XMLStreamWriter;
 import javax.xml.transform.Result;
 import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 /**
@@ -134,10 +136,8 @@ public class WSTrustResponseWriter {
     private void write(RequestSecurityTokenResponse response) throws ProcessingException, org.picketlink.common.exceptions.ProcessingException {
         // write the response element and the context attribute.
         StaxUtil.writeStartElement(this.writer, WSTrustConstants.PREFIX, WSTrustConstants.RSTR, WSTrustConstants.BASE_NAMESPACE);
-        //String context = response.getContext();
-        if(response.getContext() != null) {
-            StaxUtil.writeAttribute(this.writer, WSTrustConstants.RST_CONTEXT, response.getContext());
-        }
+
+        write(response.getContext());
 
         // write the token type, if available.
         if (response.getTokenType() != null) {
@@ -179,10 +179,68 @@ public class WSTrustResponseWriter {
         }
 
         // write the security token, if available.
-        if (response.getRequestedSecurityToken() != null) {
+        write(response.getRequestedSecurityToken());
+
+        // write the attached reference, if available.
+        if (response.getRequestedAttachedReference() != null) {
+            RequestedReferenceType ref = response.getRequestedAttachedReference();
+            StaxUtil.writeStartElement(this.writer, WSTrustConstants.PREFIX, WSTrustConstants.REQUESTED_ATTACHED_REFERENCE,
+                    WSTrustConstants.BASE_NAMESPACE);
+            new WSSecurityWriter(this.writer).writeSecurityTokenReference(ref.getSecurityTokenReference());
+            StaxUtil.writeEndElement(this.writer);
+        }
+
+        // write the unattached reference, if available.
+        if (response.getRequestedUnattachedReference() != null) {
+            RequestedReferenceType ref = response.getRequestedUnattachedReference();
+            StaxUtil.writeStartElement(this.writer, WSTrustConstants.PREFIX, WSTrustConstants.REQUESTED_UNATTACHED_REFERENCE,
+                    WSTrustConstants.BASE_NAMESPACE);
+            new WSSecurityWriter(this.writer).writeSecurityTokenReference(ref.getSecurityTokenReference());
+            StaxUtil.writeEndElement(this.writer);
+        }
+
+        // write the requested proof token, if available.
+        write(response.getRequestedProofToken());
+
+        // write the server entropy, if available.
+        write(response.getEntropy());
+
+        // write the validation status, if available.
+        write(response.getStatus());
+
+        // write the cancel status, if available.
+        if (response.getRequestedTokenCancelled() != null) {
+            StaxUtil.writeStartElement(this.writer, WSTrustConstants.PREFIX, WSTrustConstants.REQUESTED_TOKEN_CANCELLED,
+                    WSTrustConstants.BASE_NAMESPACE);
+            StaxUtil.writeEndElement(this.writer);
+        }
+
+        if (response.getRenewing() != null) {
+            RenewingType renewingType = response.getRenewing();
+            StaxUtil.writeStartElement(this.writer, WSTrustConstants.PREFIX, WSTrustConstants.RENEWING,
+                    WSTrustConstants.BASE_NAMESPACE);
+
+            StaxUtil.writeAttribute(this.writer, WSTrustConstants.ALLOW, "" + renewingType.isAllow());
+            StaxUtil.writeAttribute(this.writer, WSTrustConstants.OK, "" + renewingType.isOK());
+            StaxUtil.writeEndElement(this.writer);
+        }
+
+        // write the response end element.
+        StaxUtil.writeEndElement(this.writer);
+        StaxUtil.flush(writer);
+    }
+
+    private void write(String context) throws ProcessingException {
+        if (context != null) {
+            StaxUtil.writeAttribute(this.writer, WSTrustConstants.RST_CONTEXT, context);
+        }
+    }
+
+    private void write(RequestedSecurityTokenType reqSecurityToken) throws ProcessingException {
+        if (reqSecurityToken != null) {
             StaxUtil.writeStartElement(this.writer, WSTrustConstants.PREFIX, WSTrustConstants.REQUESTED_TOKEN,
                     WSTrustConstants.BASE_NAMESPACE);
-            List<Object> theList = response.getRequestedSecurityToken().getAny();
+            List<Object> theList = reqSecurityToken.getAny();
             for (Object securityToken : theList) {
                 if (securityToken instanceof AssertionType) {
                     AssertionType assertion = (AssertionType) securityToken;
@@ -217,39 +275,19 @@ public class WSTrustResponseWriter {
              */
             StaxUtil.writeEndElement(this.writer);
         }
+    }
 
-        // write the attached reference, if available.
-        if (response.getRequestedAttachedReference() != null) {
-            RequestedReferenceType ref = response.getRequestedAttachedReference();
-            StaxUtil.writeStartElement(this.writer, WSTrustConstants.PREFIX, WSTrustConstants.REQUESTED_ATTACHED_REFERENCE,
-                    WSTrustConstants.BASE_NAMESPACE);
-            new WSSecurityWriter(this.writer).writeSecurityTokenReference(ref.getSecurityTokenReference());
-            StaxUtil.writeEndElement(this.writer);
-        }
-
-        // write the unattached reference, if available.
-        if (response.getRequestedUnattachedReference() != null) {
-            RequestedReferenceType ref = response.getRequestedUnattachedReference();
-            StaxUtil.writeStartElement(this.writer, WSTrustConstants.PREFIX, WSTrustConstants.REQUESTED_UNATTACHED_REFERENCE,
-                    WSTrustConstants.BASE_NAMESPACE);
-            new WSSecurityWriter(this.writer).writeSecurityTokenReference(ref.getSecurityTokenReference());
-            StaxUtil.writeEndElement(this.writer);
-        }
-
-        // write the requested proof token, if available.
-        if (response.getRequestedProofToken() != null) {
-            RequestedProofTokenType requestedProof = response.getRequestedProofToken();
-
+    private void write(RequestedProofTokenType requestedProof) throws ProcessingException {
+        if (requestedProof != null) {
             StaxUtil.writeStartElement(this.writer, WSTrustConstants.PREFIX, WSTrustConstants.REQUESTED_PROOF_TOKEN,
                     WSTrustConstants.BASE_NAMESPACE);
             List<Object> theList = requestedProof.getAny();
             for (Object content : theList) {
                 if (content instanceof BinarySecretType) {
                     BinarySecretType binarySecret = (BinarySecretType) content;
-                    StaxUtil.writeStartElement(this.writer, WSTrustConstants.PREFIX, WSTrustConstants.BINARY_SECRET,
-                            WSTrustConstants.BASE_NAMESPACE);
+                    StaxUtil.writeStartElement(this.writer, WSTrustConstants.PREFIX, WSTrustConstants.BINARY_SECRET, WSTrustConstants.BASE_NAMESPACE);
                     StaxUtil.writeAttribute(this.writer, WSTrustConstants.TYPE, binarySecret.getType());
-                    StaxUtil.writeCharacters(this.writer, new String(binarySecret.getValue()));
+                    StaxUtil.writeCharacters(this.writer, new String(binarySecret.getValue(), StandardCharsets.UTF_8));
                     StaxUtil.writeEndElement(this.writer);
                 } else if (content instanceof ComputedKeyType) {
                     ComputedKeyType computedKey = (ComputedKeyType) content;
@@ -263,15 +301,14 @@ public class WSTrustResponseWriter {
 
             StaxUtil.writeEndElement(this.writer);
         }
+    }
 
-        // write the server entropy, if available.
-        if (response.getEntropy() != null) {
-            EntropyType entropy = response.getEntropy();
-            StaxUtil.writeStartElement(this.writer, WSTrustConstants.PREFIX, WSTrustConstants.ENTROPY,
-                    WSTrustConstants.BASE_NAMESPACE);
+    private void write(EntropyType entropy) throws ProcessingException {
+        if (entropy != null) {
+            StaxUtil.writeStartElement(this.writer, WSTrustConstants.PREFIX, WSTrustConstants.ENTROPY, WSTrustConstants.BASE_NAMESPACE);
 
             List<Object> entropyList = entropy.getAny();
-            if (entropyList != null && entropyList.size() != 0) {
+            if (entropyList != null) {
                 for (Object entropyObj : entropyList) {
                     if (entropyObj instanceof BinarySecretType) {
                         BinarySecretType binarySecret = (BinarySecretType) entropyObj;
@@ -280,17 +317,17 @@ public class WSTrustResponseWriter {
                         if (binarySecret.getType() != null) {
                             StaxUtil.writeAttribute(this.writer, WSTrustConstants.TYPE, binarySecret.getType());
                         }
-                        StaxUtil.writeCharacters(this.writer, new String(binarySecret.getValue()));
+                        StaxUtil.writeCharacters(this.writer, new String(binarySecret.getValue(), StandardCharsets.UTF_8));
                         StaxUtil.writeEndElement(this.writer);
                     }
                 }
             }
             StaxUtil.writeEndElement(writer);
         }
+    }
 
-        // write the validation status, if available.
-        if (response.getStatus() != null) {
-            StatusType status = response.getStatus();
+    private void write(StatusType status) throws ProcessingException {
+        if (status != null) {
             StaxUtil.writeStartElement(this.writer, WSTrustConstants.PREFIX, WSTrustConstants.STATUS,
                     WSTrustConstants.BASE_NAMESPACE);
 
@@ -300,40 +337,19 @@ public class WSTrustResponseWriter {
             }
             StaxUtil.writeStartElement(this.writer, WSTrustConstants.PREFIX, WSTrustConstants.CODE,
                     WSTrustConstants.BASE_NAMESPACE);
-            StaxUtil.writeCharacters(this.writer, response.getStatus().getCode());
+            StaxUtil.writeCharacters(this.writer, status.getCode());
             StaxUtil.writeEndElement(this.writer);
 
             // write the status reason, if available.
             if (status.getReason() != null) {
                 StaxUtil.writeStartElement(this.writer, WSTrustConstants.PREFIX, WSTrustConstants.REASON,
                         WSTrustConstants.BASE_NAMESPACE);
-                StaxUtil.writeCharacters(this.writer, response.getStatus().getReason());
+                StaxUtil.writeCharacters(this.writer, status.getReason());
                 StaxUtil.writeEndElement(this.writer);
             }
 
             // write the status end element.
             StaxUtil.writeEndElement(this.writer);
         }
-
-        // write the cancel status, if available.
-        if (response.getRequestedTokenCancelled() != null) {
-            StaxUtil.writeStartElement(this.writer, WSTrustConstants.PREFIX, WSTrustConstants.REQUESTED_TOKEN_CANCELLED,
-                    WSTrustConstants.BASE_NAMESPACE);
-            StaxUtil.writeEndElement(this.writer);
-        }
-
-        if (response.getRenewing() != null) {
-            RenewingType renewingType = response.getRenewing();
-            StaxUtil.writeStartElement(this.writer, WSTrustConstants.PREFIX, WSTrustConstants.RENEWING,
-                    WSTrustConstants.BASE_NAMESPACE);
-
-            StaxUtil.writeAttribute(this.writer, WSTrustConstants.ALLOW, "" + renewingType.isAllow());
-            StaxUtil.writeAttribute(this.writer, WSTrustConstants.OK, "" + renewingType.isOK());
-            StaxUtil.writeEndElement(this.writer);
-        }
-
-        // write the response end element.
-        StaxUtil.writeEndElement(this.writer);
-        StaxUtil.flush(writer);
     }
 }

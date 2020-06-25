@@ -15,7 +15,46 @@ for its operations.
 
 This module is currently working on 8.0.1 (check tags for compatibility with previous Keycloak versions)
 
-## How to Install
+## How to build
+
+Before building this project with a basic `mvn clean install`, you need to first build cloudtrust-common.
+
+```Bash
+git clone git@github.com:cloudtrust/cloudtrust-parent.git
+cd cloudtrust-parent
+mvn clean install
+```
+
+Then build keycloak-wsfed:
+
+```Bash
+git clone git@github.com:cloudtrust/keycloak-wsfed.git
+cd keycloak-wsfed
+mvn clean install
+```
+
+If you get an error telling `Could not find artifact org.keycloak.testsuite:integration-arquillian-tests:pom`, you might build Keycloak with:
+
+```Bash
+mvn install -Pconsole-ui-tests -DskipTests
+```
+
+
+## How to install
+
+After building it, you can automatically install this module using the following command line:
+
+```Bash
+./keycloak-wsfed/install.sh {path-to-keycloak}
+```
+
+You can uninstall it with:
+
+```Bash
+./keycloak-wsfed/install.sh {path-to-keycloak} -u
+```
+
+But you can choose to manually install it:
 
 ### Copy files
 

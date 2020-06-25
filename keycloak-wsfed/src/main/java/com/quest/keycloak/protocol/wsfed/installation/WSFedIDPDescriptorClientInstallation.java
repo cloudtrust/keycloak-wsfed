@@ -31,9 +31,11 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriBuilder;
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.util.stream.Collectors;
 
 /**
@@ -52,12 +54,12 @@ public class WSFedIDPDescriptorClientInstallation implements ClientInstallationP
      * @return a string containing the xml for the wsfed metadata
      * @throws Exception IOException if there's a problem reading the wsfed-idp-metadata-template.xml
      */
-    public static String getIDPDescriptorForClient(KeycloakSession session, RealmModel realm, URI uri) throws Exception{
+    public static String getIDPDescriptorForClient(KeycloakSession session, RealmModel realm, URI uri) throws IOException {
         KeyManager keyManager = session.keys();
         KeyWrapper activeKey = keyManager.getActiveKey(realm, KeyUse.SIG, Algorithm.RS256);
         InputStream is = WSFedIDPDescriptorClientInstallation.class.getClassLoader().getResourceAsStream("wsfed-idp-metadata-template.xml");
         String template = "Error getting descriptor";
-        try(BufferedReader br = new BufferedReader(new InputStreamReader(is))){
+        try (BufferedReader br = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))){
             template = br.lines().collect(Collectors.joining("\n"));
             template = template.replace("${idp.entityID}", RealmsResource.realmBaseUrl(UriBuilder.fromUri(uri)).build(realm.getName()).toString());
             template = template.replace("${idp.sso.sts}", RealmsResource.protocolUrl(UriBuilder.fromUri(uri)).build(realm.getName(), WSFedLoginProtocol.LOGIN_PROTOCOL).toString());
@@ -109,7 +111,7 @@ public class WSFedIDPDescriptorClientInstallation implements ClientInstallationP
 
     @Override
     public void close() {
-
+        // Nothing to do
     }
 
     @Override
@@ -119,12 +121,12 @@ public class WSFedIDPDescriptorClientInstallation implements ClientInstallationP
 
     @Override
     public void init(Config.Scope config) {
-
+        // Nothing to do
     }
 
     @Override
     public void postInit(KeycloakSessionFactory factory) {
-
+        // Nothing to do
     }
 
     @Override

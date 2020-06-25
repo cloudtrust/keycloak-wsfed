@@ -21,7 +21,6 @@ import com.quest.keycloak.common.wsfed.TestHelpers;
 import com.quest.keycloak.common.wsfed.WSFedConstants;
 import com.quest.keycloak.protocol.wsfed.builders.WSFedProtocolParameters;
 import org.jboss.logging.Logger;
-import org.jboss.resteasy.plugins.server.servlet.HttpServletResponseHeaders;
 import org.jboss.resteasy.specimpl.MultivaluedMapImpl;
 import org.jboss.resteasy.spi.HttpRequest;
 import org.jboss.resteasy.spi.HttpResponse;
@@ -38,7 +37,13 @@ import org.keycloak.common.enums.SslRequired;
 import org.keycloak.common.util.PemUtils;
 import org.keycloak.events.Errors;
 import org.keycloak.events.EventBuilder;
-import org.keycloak.models.*;
+import org.keycloak.models.AuthenticatedClientSessionModel;
+import org.keycloak.models.AuthenticationFlowModel;
+import org.keycloak.models.IdentityProviderModel;
+import org.keycloak.models.KeycloakSession;
+import org.keycloak.models.RealmModel;
+import org.keycloak.models.UserSessionModel;
+import org.keycloak.models.UserSessionProvider;
 import org.keycloak.protocol.oidc.OIDCLoginProtocol;
 import org.keycloak.saml.common.util.DocumentUtil;
 import org.keycloak.services.managers.AuthenticationManager;
@@ -53,10 +58,11 @@ import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 
 import javax.ws.rs.HttpMethod;
-import javax.ws.rs.core.*;
+import javax.ws.rs.core.HttpHeaders;
+import javax.ws.rs.core.MultivaluedMap;
+import javax.ws.rs.core.Response;
 
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.UUID;
 
@@ -205,17 +211,17 @@ public class WSFedServiceTest {
     @Test
     public void testBasicChecksMissingActionLoggingOut() throws Exception {
         WSFedProtocolParameters parameters = new WSFedProtocolParameters();
-        parameters.setWsfed_realm("https://realm");
+        parameters.setWsfedRealm("https://realm");
         doReturn(UserSessionModel.State.LOGGING_OUT).when(mockHelper.getUserSessionModel()).getState();
 
         assertNull(service.basicChecks(parameters));
-        assertEquals(UserSessionModel.State.LOGGING_OUT.toString(), parameters.getWsfed_action());
+        assertEquals(UserSessionModel.State.LOGGING_OUT.toString(), parameters.getWsfedAction());
     }
 
     @Test
     public void testBasicChecksMissingAction() throws Exception {
         WSFedProtocolParameters parameters = new WSFedProtocolParameters();
-        parameters.setWsfed_realm("https://realm");
+        parameters.setWsfedRealm("https://realm");
         doReturn(UserSessionModel.State.LOGGED_IN).when(mockHelper.getUserSessionModel()).getState();
 
         assertNotNull(service.basicChecks(parameters));
@@ -225,7 +231,7 @@ public class WSFedServiceTest {
     @Test
     public void testBasicChecksMissingRealm() throws Exception {
         WSFedProtocolParameters parameters = new WSFedProtocolParameters();
-        parameters.setWsfed_action(WSFedConstants.WSFED_SIGNIN_ACTION);
+        parameters.setWsfedAction(WSFedConstants.WSFED_SIGNIN_ACTION);
 
         assertNotNull(service.basicChecks(parameters));
         assertErrorPage(mockHelper.getLoginFormsProvider(), Messages.INVALID_REQUEST);
@@ -234,19 +240,19 @@ public class WSFedServiceTest {
     @Test
     public void testBasicChecksMissingRealmLoggingOut() throws Exception {
         WSFedProtocolParameters parameters = new WSFedProtocolParameters();
-        parameters.setWsfed_action(WSFedConstants.WSFED_SIGNOUT_ACTION);
+        parameters.setWsfedAction(WSFedConstants.WSFED_SIGNOUT_ACTION);
 
         doReturn("https://realm").when(mockHelper.getUserSessionModel()).getNote(eq(WSFedConstants.WSFED_REALM));
 
         assertNull(service.basicChecks(parameters));
-        assertEquals("https://realm", parameters.getWsfed_realm());
+        assertEquals("https://realm", parameters.getWsfedRealm());
     }
 
     @Test
     public void testBasicChecks() throws Exception {
         WSFedProtocolParameters parameters = new WSFedProtocolParameters();
-        parameters.setWsfed_action(WSFedConstants.WSFED_SIGNIN_ACTION);
-        parameters.setWsfed_realm("https://realm");
+        parameters.setWsfedAction(WSFedConstants.WSFED_SIGNIN_ACTION);
+        parameters.setWsfedRealm("https://realm");
 
         assertNull(service.basicChecks(parameters));
     }
@@ -255,16 +261,16 @@ public class WSFedServiceTest {
     public void testIsSignout() throws Exception {
         WSFedProtocolParameters params = new WSFedProtocolParameters();
 
-        params.setWsfed_action(WSFedConstants.WSFED_SIGNOUT_ACTION);
+        params.setWsfedAction(WSFedConstants.WSFED_SIGNOUT_ACTION);
         assertTrue(service.isSignout(params));
 
-        params.setWsfed_action(WSFedConstants.WSFED_SIGNOUT_CLEANUP_ACTION);
+        params.setWsfedAction(WSFedConstants.WSFED_SIGNOUT_CLEANUP_ACTION);
         assertTrue(service.isSignout(params));
 
-        params.setWsfed_action(UserSessionModel.State.LOGGING_OUT.toString());
+        params.setWsfedAction(UserSessionModel.State.LOGGING_OUT.toString());
         assertTrue(service.isSignout(params));
 
-        params.setWsfed_action(WSFedConstants.WSFED_SIGNIN_ACTION);
+        params.setWsfedAction(WSFedConstants.WSFED_SIGNIN_ACTION);
         assertFalse(service.isSignout(params));
     }
 
@@ -272,14 +278,14 @@ public class WSFedServiceTest {
     public void testClientChecksSignout() throws Exception {
         WSFedProtocolParameters params = new WSFedProtocolParameters();
 
-        params.setWsfed_action(WSFedConstants.WSFED_SIGNOUT_ACTION);
+        params.setWsfedAction(WSFedConstants.WSFED_SIGNOUT_ACTION);
         assertNull(service.clientChecks(mockHelper.getClient(), params));
     }
 
     @Test
     public void testClientChecksNullClient() throws Exception {
         WSFedProtocolParameters params = new WSFedProtocolParameters();
-        params.setWsfed_action(WSFedConstants.WSFED_SIGNIN_ACTION);
+        params.setWsfedAction(WSFedConstants.WSFED_SIGNIN_ACTION);
 
         assertNotNull(service.clientChecks(null, params));
         assertErrorPage(mockHelper.getLoginFormsProvider(), Messages.UNKNOWN_LOGIN_REQUESTER);
@@ -288,7 +294,7 @@ public class WSFedServiceTest {
     @Test
     public void testClientChecksDisabledClient() throws Exception {
         WSFedProtocolParameters params = new WSFedProtocolParameters();
-        params.setWsfed_action(WSFedConstants.WSFED_SIGNIN_ACTION);
+        params.setWsfedAction(WSFedConstants.WSFED_SIGNIN_ACTION);
 
         doReturn(false).when(mockHelper.getClient()).isEnabled();
         assertNotNull(service.clientChecks(mockHelper.getClient(), params));
@@ -298,7 +304,7 @@ public class WSFedServiceTest {
     @Test
     public void testClientChecksBearerOnlyClient() throws Exception {
         WSFedProtocolParameters params = new WSFedProtocolParameters();
-        params.setWsfed_action(WSFedConstants.WSFED_SIGNIN_ACTION);
+        params.setWsfedAction(WSFedConstants.WSFED_SIGNIN_ACTION);
 
         doReturn(true).when(mockHelper.getClient()).isBearerOnly();
         assertNotNull(service.clientChecks(mockHelper.getClient(), params));
@@ -308,7 +314,7 @@ public class WSFedServiceTest {
     @Test
     public void testClientChecks() throws Exception {
         WSFedProtocolParameters params = new WSFedProtocolParameters();
-        params.setWsfed_action(WSFedConstants.WSFED_SIGNIN_ACTION);
+        params.setWsfedAction(WSFedConstants.WSFED_SIGNIN_ACTION);
 
         assertNull(service.clientChecks(mockHelper.getClient(), params));
         verify(mockHelper.getSession().getContext(), times(1)).setClient(eq(mockHelper.getClient()));
@@ -452,43 +458,43 @@ public class WSFedServiceTest {
     @Test
     public void testHandleLogoutRequestReplyAddress() throws Exception {
         WSFedProtocolParameters params = new WSFedProtocolParameters();
-        params.setWsfed_reply("https://redirectUri");
-        params.setWsfed_context("context");
+        params.setWsfedReply("https://redirectUri");
+        params.setWsfedContext("context");
 
-        doReturn(new HashSet<>(Arrays.asList(params.getWsfed_reply()))).when(mockHelper.getClient()).getRedirectUris();
+        doReturn(new HashSet<>(Arrays.asList(params.getWsfedReply()))).when(mockHelper.getClient()).getRedirectUris();
         doReturn(null).when(service).authenticateIdentityCookie();
 
         Response response = service.handleLogoutRequest(params, mockHelper.getClient());
         Document doc = responseToDocument(response);
 
-        assertFormAction(doc, HttpMethod.GET, params.getWsfed_reply());
-        assertInputNode(doc, WSFedConstants.WSFED_CONTEXT, params.getWsfed_context());
+        assertFormAction(doc, HttpMethod.GET, params.getWsfedReply());
+        assertInputNode(doc, WSFedConstants.WSFED_CONTEXT, params.getWsfedContext());
     }
 
     //@Test
     public void testHandleLogoutRequestReplyAddressNoClient() throws Exception {
         WSFedProtocolParameters params = new WSFedProtocolParameters();
-        params.setWsfed_reply("https://redirectUri");
-        params.setWsfed_context("context");
+        params.setWsfedReply("https://redirectUri");
+        params.setWsfedContext("context");
 
-        doReturn(new HashSet<>(Arrays.asList(params.getWsfed_reply()))).when(mockHelper.getClient()).getRedirectUris();
+        doReturn(new HashSet<>(Arrays.asList(params.getWsfedReply()))).when(mockHelper.getClient()).getRedirectUris();
         doReturn(null).when(service).authenticateIdentityCookie();
         doReturn(Arrays.asList(mockHelper.getClient())).when(mockHelper.getRealm()).getClients();
 
         Response response = service.handleLogoutRequest(params, null);
         Document doc = responseToDocument(response);
 
-        assertFormAction(doc, HttpMethod.GET, params.getWsfed_reply());
-        assertInputNode(doc, WSFedConstants.WSFED_CONTEXT, params.getWsfed_context());
+        assertFormAction(doc, HttpMethod.GET, params.getWsfedReply());
+        assertInputNode(doc, WSFedConstants.WSFED_CONTEXT, params.getWsfedContext());
     }
 
     @Test
     public void testHandleLogoutRequest() throws Exception {
         WSFedProtocolParameters params = new WSFedProtocolParameters();
-        params.setWsfed_reply("https://redirectUri");
-        params.setWsfed_context("context");
+        params.setWsfedReply("https://redirectUri");
+        params.setWsfedContext("context");
 
-        doReturn(new HashSet<>(Arrays.asList(params.getWsfed_reply()))).when(mockHelper.getClient()).getRedirectUris();
+        doReturn(new HashSet<>(Arrays.asList(params.getWsfedReply()))).when(mockHelper.getClient()).getRedirectUris();
         //doReturn(Collections.singletonMap(getMockHelper().getClient().getId(),mockHelper.getClientSessionModel())).when(mockHelper.getUserSessionModel().getAuthenticatedClientSessions());
         doReturn(mockHelper.getClient()).when(mockHelper.getClientSessionModel()).getClient();
 
@@ -500,8 +506,8 @@ public class WSFedServiceTest {
         catch(NullPointerException ex) {
         }
 
-        verify(mockHelper.getUserSessionModel(), times(1)).setNote(eq(WSFedLoginProtocol.WSFED_LOGOUT_BINDING_URI), eq(params.getWsfed_reply()));
-        verify(mockHelper.getUserSessionModel(), times(1)).setNote(eq(WSFedLoginProtocol.WSFED_CONTEXT), eq(params.getWsfed_context()));
+        verify(mockHelper.getUserSessionModel(), times(1)).setNote(eq(WSFedLoginProtocol.WSFED_LOGOUT_BINDING_URI), eq(params.getWsfedReply()));
+        verify(mockHelper.getUserSessionModel(), times(1)).setNote(eq(WSFedLoginProtocol.WSFED_CONTEXT), eq(params.getWsfedContext()));
         verify(mockHelper.getUserSessionModel(), times(1)).setNote(eq(AuthenticationManager.KEYCLOAK_LOGOUT_PROTOCOL), eq(WSFedLoginProtocol.LOGIN_PROTOCOL));
 
         verify(mockHelper.getClientSessionModel(), times(1)).setAction(eq(AuthenticatedClientSessionModel.Action.LOGGED_OUT.name()));
@@ -517,8 +523,8 @@ public class WSFedServiceTest {
     @Test
     public void testHandleLoginRequestInvalidRedirect() throws Exception {
         WSFedProtocolParameters params = new WSFedProtocolParameters();
-        params.setWsfed_reply("https://redirectUri");
-        params.setWsfed_context("context");
+        params.setWsfedReply("https://redirectUri");
+        params.setWsfedContext("context");
 
         //doReturn(new HashSet<>(Arrays.asList(params.getWsfed_reply()))).when(mockHelper.getClient()).getRedirectUris();
         assertNotNull(service.handleLoginRequest(params, mockHelper.getClient(), false));
@@ -528,10 +534,10 @@ public class WSFedServiceTest {
     @Test
     public void testHandleLoginRequest() throws Exception {
         WSFedProtocolParameters params = new WSFedProtocolParameters();
-        params.setWsfed_reply("https://redirectUri");
-        params.setWsfed_context("context");
+        params.setWsfedReply("https://redirectUri");
+        params.setWsfedContext("context");
 
-        doReturn(new HashSet<>(Arrays.asList(params.getWsfed_reply()))).when(mockHelper.getClient()).getRedirectUris();
+        doReturn(new HashSet<>(Arrays.asList(params.getWsfedReply()))).when(mockHelper.getClient()).getRedirectUris();
 
         AuthenticationFlowModel flow = mock(AuthenticationFlowModel.class);
         doReturn(UUID.randomUUID().toString()).when(flow).getId();
@@ -555,23 +561,24 @@ public class WSFedServiceTest {
         verify(mockHelper.getLoginFormsProvider(), times(1)).createErrorPage(Response.Status.BAD_REQUEST);
 
         verify(mockHelper.getAuthSessionModel(), times(1)).setProtocol(eq(WSFedLoginProtocol.LOGIN_PROTOCOL));
-        verify(mockHelper.getAuthSessionModel(), times(1)).setRedirectUri(eq(params.getWsfed_reply()));
+        verify(mockHelper.getAuthSessionModel(), times(1)).setRedirectUri(eq(params.getWsfedReply()));
         verify(mockHelper.getAuthSessionModel(), times(1)).setAction(eq(AuthenticationSessionModel.Action.AUTHENTICATE.name()));
-        verify(mockHelper.getAuthSessionModel(), times(1)).setClientNote(eq(WSFedConstants.WSFED_CONTEXT), eq(params.getWsfed_context()));
+        verify(mockHelper.getAuthSessionModel(), times(1)).setClientNote(eq(WSFedConstants.WSFED_CONTEXT), eq(params.getWsfedContext()));
         String issuer = RealmsResource.realmBaseUrl(mockHelper.getUriInfo()).build(mockHelper.getRealmName()).toString();
         verify(mockHelper.getAuthSessionModel(), times(1)).setClientNote(eq(OIDCLoginProtocol.ISSUER), eq(issuer));
     }
+
     @Test
     @Ignore
     public void testHandleLoginRequestRedirectToIdentityProvider() throws Exception {
         WSFedProtocolParameters params = new WSFedProtocolParameters();
-        params.setWsfed_reply("https://redirectUri");
-        params.setWsfed_context("context");
+        params.setWsfedReply("https://redirectUri");
+        params.setWsfedContext("context");
         // The home realm parameter 'whr' is used to log in using an identity provider
-        params.setWsfed_home_realm("dummyIdentityProvider");
+        params.setWsfedHomeRealm("dummyIdentityProvider");
 
         doReturn(identityProvider).when(mockHelper.getRealm()).getIdentityProviderByAlias("dummyIdentityProvider");
-        doReturn(new HashSet<>(Arrays.asList(params.getWsfed_reply()))).when(mockHelper.getClient()).getRedirectUris();
+        doReturn(new HashSet<>(Arrays.asList(params.getWsfedReply()))).when(mockHelper.getClient()).getRedirectUris();
         AuthenticationFlowModel flow = mock(AuthenticationFlowModel.class);
         doReturn(UUID.randomUUID().toString()).when(flow).getId();
         doReturn(flow).when(mockHelper.getRealm()).getBrowserFlow();

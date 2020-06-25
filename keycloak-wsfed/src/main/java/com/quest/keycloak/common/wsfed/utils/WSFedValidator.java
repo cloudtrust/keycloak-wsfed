@@ -42,11 +42,7 @@ public class WSFedValidator {
     }
 
     private boolean checkSsl(UriInfo uriInfo, ClientConnection clientConnection) {
-        if (uriInfo.getBaseUri().getScheme().equals("https")) {
-            return true;
-        } else {
-            return !realm.getSslRequired().isRequired(clientConnection);
-        }
+        return "https".equals(uriInfo.getBaseUri().getScheme()) || !realm.getSslRequired().isRequired(clientConnection);
     }
 
     public Response basicChecks(String wsfedAction, UriInfo uriInfo,

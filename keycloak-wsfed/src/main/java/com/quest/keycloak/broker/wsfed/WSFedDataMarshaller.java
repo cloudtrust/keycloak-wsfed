@@ -26,69 +26,85 @@ import org.keycloak.saml.processing.core.parsers.saml.SAMLParser;
 import org.keycloak.saml.processing.core.saml.v1.writers.SAML11AssertionWriter;
 import org.keycloak.saml.processing.core.saml.v2.writers.SAMLAssertionWriter;
 
-import io.cloudtrust.keycloak.exceptions.CtRuntimeException;
+import io.cloudtrust.exception.CloudtrustRuntimeException;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.function.Function;
+import java.util.function.Predicate;
 
 public class WSFedDataMarshaller extends DefaultDataMarshaller {
-    @Override
-    public String serialize(Object obj) {
-        if (obj instanceof AssertionType) {
+    private static final Map<Predicate<Object>, Function<Object, String>> serializers;
+    private static final Map<Class<?>, Function<String, Object>> deserializers;
+
+    static {
+        serializers = new HashMap<>();
+        serializers.put(o -> o instanceof AssertionType, obj -> {
             try {
                 ByteArrayOutputStream bos = new ByteArrayOutputStream();
                 AssertionType assertion = (AssertionType) obj;
                 SAMLAssertionWriter samlWriter = new SAMLAssertionWriter(StaxUtil.getXMLStreamWriter(bos));
                 samlWriter.write(assertion);
 
-                return new String(bos.toByteArray());
+                return new String(bos.toByteArray(), StandardCharsets.UTF_8);
             } catch (ProcessingException pe) {
-                throw new CtRuntimeException(pe);
+                throw new CloudtrustRuntimeException(pe);
             }
-        }
-        else if (obj instanceof SAML11AssertionType) {
+        });
+        serializers.put(o -> o instanceof SAML11AssertionType, obj -> {
             try {
                 ByteArrayOutputStream bos = new ByteArrayOutputStream();
                 SAML11AssertionType assertion = (SAML11AssertionType) obj;
                 SAML11AssertionWriter samlWriter = new SAML11AssertionWriter(StaxUtil.getXMLStreamWriter(bos));
                 samlWriter.write(assertion);
 
-                return new String(bos.toByteArray());
+                return new String(bos.toByteArray(), StandardCharsets.UTF_8);
             } catch (ProcessingException pe) {
-                throw new CtRuntimeException(pe);
+                throw new CloudtrustRuntimeException(pe);
             }
-        } else {
-            return super.serialize(obj);
-        }
+        });
+
+        deserializers = new HashMap<>();
+        deserializers.put(AssertionType.class, s -> {
+            try {
+                byte[] bytes = s.getBytes(StandardCharsets.UTF_8);
+                InputStream is = new ByteArrayInputStream(bytes);
+                return SAMLParser.getInstance().parse(is);
+            } catch (ParsingException pe) {
+                throw new CloudtrustRuntimeException(pe);
+            }
+        });
+        deserializers.put(SAML11AssertionType.class, s -> {
+            try {
+                byte[] bytes = s.getBytes(StandardCharsets.UTF_8);
+                InputStream is = new ByteArrayInputStream(bytes);
+                return SAMLParser.getInstance().parse(is);
+            } catch (ParsingException pe) {
+                throw new CloudtrustRuntimeException(pe);
+            }
+        });
+    }
+
+    @Override
+    public String serialize(Object obj) {
+        return serializers.entrySet().stream()
+            .filter(e -> e.getKey().test(obj)).map(Entry::getValue).findFirst()
+            .orElse(super::serialize)
+            .apply(obj);
     }
 
     @Override
     public <T> T deserialize(String serialized, Class<T> clazz) {
-        if (clazz.equals(AssertionType.class)) {
-            try {
-                byte[] bytes = serialized.getBytes();
-                InputStream is = new ByteArrayInputStream(bytes);
-                Object respType = SAMLParser.getInstance().parse(is);
-
-                return clazz.cast(respType);
-            } catch (ParsingException pe) {
-                throw new CtRuntimeException(pe);
-            }
-        }
-        else if (clazz.equals(SAML11AssertionType.class)) {
-            try {
-                byte[] bytes = serialized.getBytes();
-                InputStream is = new ByteArrayInputStream(bytes);
-                Object respType = SAMLParser.getInstance().parse(is);
-
-                return clazz.cast(respType);
-            } catch (ParsingException pe) {
-                throw new CtRuntimeException(pe);
-            }
-        } else {
+        Function<String, Object> deserializer = deserializers.get(clazz);
+        if (deserializer==null) {
             return super.deserialize(serialized, clazz);
         }
+        return clazz.cast(deserializer.apply(serialized));
     }
 }
 

@@ -85,8 +85,6 @@ public class WSFedLoginProtocol implements LoginProtocol {
 
     protected HttpHeaders headers;
 
-    private EventBuilder event;
-
     /**
      * Gets the current KeycloakSession
      *
@@ -161,7 +159,6 @@ public class WSFedLoginProtocol implements LoginProtocol {
      */
     @Override
     public LoginProtocol setEventBuilder(EventBuilder event) {
-        this.event = event;
         return this;
     }
 
@@ -400,7 +397,7 @@ public class WSFedLoginProtocol implements LoginProtocol {
 
     @Override
     public void close() {
-
+        // Nothing to do
     }
 
     /**

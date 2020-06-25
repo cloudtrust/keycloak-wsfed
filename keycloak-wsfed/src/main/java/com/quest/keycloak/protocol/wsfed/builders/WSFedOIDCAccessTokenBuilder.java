@@ -74,11 +74,11 @@ public class WSFedOIDCAccessTokenBuilder {
         return this;
     }
 
-    public ClientSessionCode getAccessCode() {
+    public ClientSessionCode<?> getAccessCode() {
         return accessCode;
     }
 
-    public WSFedOIDCAccessTokenBuilder setAccessCode(ClientSessionCode accessCode) {
+    public WSFedOIDCAccessTokenBuilder setAccessCode(ClientSessionCode<?> accessCode) {
         this.accessCode = accessCode;
         return this;
     }
@@ -109,7 +109,7 @@ public class WSFedOIDCAccessTokenBuilder {
         return encodeToken(realm, accessToken);
     }
 
-    public String encodeToken(RealmModel realm, Object token) throws NoSuchAlgorithmException, CertificateEncodingException {
+    private String encodeToken(RealmModel realm, Object token) throws NoSuchAlgorithmException, CertificateEncodingException {
         JWSBuilderExtended builder = new JWSBuilderExtended().type("JWT");
 
         KeyManager keyManager = session.keys();
@@ -130,22 +130,22 @@ public class WSFedOIDCAccessTokenBuilder {
         return this;
     }
 
-    protected class JWSBuilderExtended extends JWSBuilder {
-        String type;
-        String contentType;
+    protected static class JWSBuilderExtended extends JWSBuilder {
+        String jwsType;
+        String jwsContentType;
         String x5t;
 
         @Override
         public JWSBuilderExtended type(String type) {
             super.type(type);
-            this.type = type;
+            this.jwsType = type;
             return this;
         }
 
         @Override
         public JWSBuilderExtended contentType(String type) {
             super.contentType(type);
-            this.contentType = type;
+            this.jwsContentType = type;
             return this;
         }
 
@@ -165,17 +165,17 @@ public class WSFedOIDCAccessTokenBuilder {
         @Override
         protected String encodeHeader(String algo) {
             StringBuilder builder = new StringBuilder("{");
-            if (type != null) builder.append("\"typ\":\"").append(type).append("\",");
-            builder.append("\"alg\":\"").append(algo).append("\"");
+            if (jwsType != null) builder.append("\"typ\":\"").append(jwsType).append("\",");
+            builder.append("\"alg\":\"").append(algo).append('"');
 
-            if (contentType != null) builder.append(",\"cty\":\"").append(contentType).append("\"");
-            if (x5t != null) builder.append(",\"x5t\":\"").append(x5t).append("\"");
-            builder.append("}");
+            if (jwsContentType != null) builder.append(",\"cty\":\"").append(jwsContentType).append('"');
+            if (x5t != null) builder.append(",\"x5t\":\"").append(x5t).append('"');
+            builder.append('}');
             return Base64Url.encode(builder.toString().getBytes(StandardCharsets.UTF_8));
         }
     }
 
-    public AccessToken transformAccessToken(KeycloakSession session, AccessToken token, UserSessionModel userSession,
+    private AccessToken transformAccessToken(KeycloakSession session, AccessToken token, UserSessionModel userSession,
                                             AuthenticatedClientSessionModel clientSession) {
         Set<ProtocolMapperModel> mappings = clientSession.getClient().getProtocolMappers();
         KeycloakSessionFactory sessionFactory = session.getKeycloakSessionFactory();

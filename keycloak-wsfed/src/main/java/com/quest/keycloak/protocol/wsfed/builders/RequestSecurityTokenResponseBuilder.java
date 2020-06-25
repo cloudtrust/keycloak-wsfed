@@ -234,7 +234,7 @@ public class RequestSecurityTokenResponseBuilder extends WSFedResponseBuilder {
         response.setContext(StringEscapeUtils.escapeXml(context));
 
         XMLGregorianCalendar issueInstance = XMLTimeUtil.getIssueInstant();
-        response.setLifetime(new Lifetime(issueInstance.toGregorianCalendar(), XMLTimeUtil.add(issueInstance, tokenExpiration * 1000).toGregorianCalendar()));
+        response.setLifetime(new Lifetime(issueInstance.toGregorianCalendar(), XMLTimeUtil.add(issueInstance, tokenExpiration * 1000L).toGregorianCalendar()));
         response.setAppliesTo(new AppliesTo());
         EndpointReferenceType ert = new EndpointReferenceType();
         ert.setAddress(new AttributedURIType());

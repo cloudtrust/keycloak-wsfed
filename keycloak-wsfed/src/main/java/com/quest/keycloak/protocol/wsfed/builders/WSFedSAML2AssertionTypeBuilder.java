@@ -27,8 +27,11 @@ import org.keycloak.saml.common.constants.GeneralConstants;
 import org.keycloak.saml.common.constants.JBossSAMLURIConstants;
 
 import javax.xml.datatype.DatatypeConfigurationException;
+
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -84,12 +87,12 @@ public class WSFedSAML2AssertionTypeBuilder extends WsFedSAMLAssertionTypeAbstra
         roleListMapper.mapper.mapRoles(attributeStatement, roleListMapper.model, session, userSession, clientSession);
 
         //SAML Spec 2.7.3 AttributeStatement much contain one or more Attribute or EncryptedAttribute
-        if(attributeStatement.getAttributes().size() > 0) {
+        if (!attributeStatement.getAttributes().isEmpty()) {
             assertion.addStatement(attributeStatement);
         }
     }
 
-    public void transformAttributeStatement(List<SamlProtocol.ProtocolMapperProcessor<WSFedSAMLAttributeStatementMapper>> attributeStatementMappers,
+    private void transformAttributeStatement(List<SamlProtocol.ProtocolMapperProcessor<WSFedSAMLAttributeStatementMapper>> attributeStatementMappers,
                                             AssertionType assertion,
                                             KeycloakSession session,
                                             UserSessionModel userSession, AuthenticatedClientSessionModel clientSession) {
@@ -99,9 +102,19 @@ public class WSFedSAML2AssertionTypeBuilder extends WsFedSAMLAssertionTypeAbstra
         }
 
         //SAML Spec 2.7.3 AttributeStatement much contain one or more Attribute or EncryptedAttribute
-        if(attributeStatement.getAttributes().size() > 0) {
+        if (!attributeStatement.getAttributes().isEmpty()) {
             assertion.addStatement(attributeStatement);
         }
+    }
+
+    private static final Map<String, String> mapConfiguredNameToNameIdFormat;
+
+    static {
+        mapConfiguredNameToNameIdFormat = new HashMap<>();
+        mapConfiguredNameToNameIdFormat.put("email", JBossSAMLURIConstants.NAMEID_FORMAT_EMAIL.get());
+        mapConfiguredNameToNameIdFormat.put("persistent", JBossSAMLURIConstants.NAMEID_FORMAT_PERSISTENT.get());
+        mapConfiguredNameToNameIdFormat.put("transient", JBossSAMLURIConstants.NAMEID_FORMAT_TRANSIENT.get());
+        mapConfiguredNameToNameIdFormat.put("username", JBossSAMLURIConstants.NAMEID_FORMAT_UNSPECIFIED.get());
     }
 
     protected String getNameIdFormat(AuthenticatedClientSessionModel clientSession) {
@@ -110,20 +123,9 @@ public class WSFedSAML2AssertionTypeBuilder extends WsFedSAMLAssertionTypeAbstra
         boolean forceFormat = forceNameIdFormat(client);
         String configuredNameIdFormat = client.getAttribute(SAML_NAME_ID_FORMAT_ATTRIBUTE);
         if ((nameIdFormat == null || forceFormat) && configuredNameIdFormat != null) {
-            if (configuredNameIdFormat.equals("email")) {
-                nameIdFormat = JBossSAMLURIConstants.NAMEID_FORMAT_EMAIL.get();
-            } else if (configuredNameIdFormat.equals("persistent")) {
-                nameIdFormat = JBossSAMLURIConstants.NAMEID_FORMAT_PERSISTENT.get();
-            } else if (configuredNameIdFormat.equals("transient")) {
-                nameIdFormat = JBossSAMLURIConstants.NAMEID_FORMAT_TRANSIENT.get();
-            } else if (configuredNameIdFormat.equals("username")) {
-                nameIdFormat = JBossSAMLURIConstants.NAMEID_FORMAT_UNSPECIFIED.get();
-            } else {
-                nameIdFormat = JBossSAMLURIConstants.NAMEID_FORMAT_UNSPECIFIED.get();
-            }
+            nameIdFormat = mapConfiguredNameToNameIdFormat.getOrDefault(configuredNameIdFormat, JBossSAMLURIConstants.NAMEID_FORMAT_UNSPECIFIED.get());
         }
-        if(nameIdFormat == null) return SAML_DEFAULT_NAMEID_FORMAT;
-        return nameIdFormat;
+        return nameIdFormat != null ? nameIdFormat : SAML_DEFAULT_NAMEID_FORMAT;
     }
 
     protected static boolean forceNameIdFormat(ClientModel client) {

@@ -21,7 +21,7 @@ import com.quest.keycloak.common.wsfed.TestHelpers;
 import com.quest.keycloak.common.wsfed.WSFedConstants;
 import com.quest.keycloak.protocol.wsfed.builders.RequestSecurityTokenResponseBuilder;
 
-import io.cloudtrust.keycloak.exceptions.CtRuntimeException;
+import io.cloudtrust.exception.CloudtrustRuntimeException;
 
 import org.junit.Before;
 import org.junit.Rule;
@@ -328,7 +328,7 @@ public class WSFedEndpointTest {
         when(token.getSessionIndex()).thenReturn("123");
         when(token.getUsername()).thenReturn("username");
 
-        when(callback.authenticated(any(BrokeredIdentityContext.class))).thenThrow(new CtRuntimeException("Exception"));
+        when(callback.authenticated(any(BrokeredIdentityContext.class))).thenThrow(new CloudtrustRuntimeException("Exception"));
 
         expectedException.expect(IdentityBrokerException.class);
         expectedException.expectMessage(equalTo("Could not process response from WS-Fed identity provider."));
@@ -397,12 +397,12 @@ public class WSFedEndpointTest {
             generator.initialize(2048);
             keyPair = generator.generateKeyPair();
         } catch (NoSuchAlgorithmException e) {
-            throw new CtRuntimeException(e);
+            throw new CloudtrustRuntimeException(e);
         }
         try {
             CertificateUtils.generateV1SelfSignedCertificate(keyPair, "junk");
         } catch (Exception e) {
-            throw new CtRuntimeException(e);
+            throw new CloudtrustRuntimeException(e);
         }
         RequestSecurityTokenResponseBuilder builder = SAML2RequestedTokenTest.generateRequestSecurityTokenResponseBuilder(mockHelper);
         when(config.isValidateSignature()).thenReturn(true);

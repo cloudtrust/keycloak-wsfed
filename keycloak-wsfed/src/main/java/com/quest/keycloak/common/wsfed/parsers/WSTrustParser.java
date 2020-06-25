@@ -20,9 +20,14 @@ package com.quest.keycloak.common.wsfed.parsers;
 import org.picketlink.common.constants.WSTrustConstants;
 import org.picketlink.common.exceptions.ParsingException;
 import org.picketlink.common.parsers.AbstractParser;
+import org.picketlink.common.parsers.ParserNamespaceSupport;
 import org.picketlink.common.util.StaxParserUtil;
 import org.picketlink.identity.federation.core.parsers.wst.WSTRequestSecurityTokenCollectionParser;
 import org.picketlink.identity.federation.core.parsers.wst.WSTRequestSecurityTokenParser;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.function.Supplier;
 
 import javax.xml.namespace.QName;
 import javax.xml.stream.XMLEventReader;
@@ -37,6 +42,18 @@ import javax.xml.stream.events.XMLEvent;
  * @since Oct 11, 2010
  */
 public class WSTrustParser extends AbstractParser {
+    interface TagParser {
+        Object parse(XMLEventReader reader) throws ParsingException;
+    }
+
+    private static Map<String, Supplier<ParserNamespaceSupport>> tagParsers = new HashMap<>();
+
+    static {
+        tagParsers.put(WSTrustConstants.RST_COLLECTION.toUpperCase(), WSTRequestSecurityTokenCollectionParser::new);
+        tagParsers.put(WSTrustConstants.RST.toUpperCase(), WSTRequestSecurityTokenParser::new);
+        tagParsers.put(WSTrustConstants.RSTR_COLLECTION.toUpperCase(), WSTRequestSecurityTokenResponseCollectionParser::new);
+        tagParsers.put(WSTrustConstants.RSTR.toUpperCase(), WSTRequestSecurityTokenResponseParser::new);
+    }
 
     /**
      * @see AbstractParser#parse(XMLEventReader)
@@ -49,20 +66,11 @@ public class WSTrustParser extends AbstractParser {
                 StartElement startElement = (StartElement) xmlEvent;
 
                 String elementName = StaxParserUtil.getStartElementName(startElement);
-                if (elementName.equalsIgnoreCase(WSTrustConstants.RST_COLLECTION)) {
-                    WSTRequestSecurityTokenCollectionParser wstrcoll = new WSTRequestSecurityTokenCollectionParser();
-                    return wstrcoll.parse(xmlEventReader);
-                } else if (elementName.equalsIgnoreCase(WSTrustConstants.RST)) {
-                    WSTRequestSecurityTokenParser wst = new WSTRequestSecurityTokenParser();
-                    return wst.parse(xmlEventReader);
-                } else if (elementName.equalsIgnoreCase(WSTrustConstants.RSTR_COLLECTION)) {
-                    WSTRequestSecurityTokenResponseCollectionParser wstrcoll = new WSTRequestSecurityTokenResponseCollectionParser();
-                    return wstrcoll.parse(xmlEventReader);
-                } else if (elementName.equalsIgnoreCase(WSTrustConstants.RSTR)) {
-                    WSTRequestSecurityTokenResponseParser wst = new WSTRequestSecurityTokenResponseParser();
-                    return wst.parse(xmlEventReader);
+                Supplier<ParserNamespaceSupport> parser = tagParsers.get(elementName.toUpperCase());
+                if (parser==null) {
+                    throw logger.parserFailed(elementName);
                 }
-                throw logger.parserFailed(elementName);
+                return parser.get().parse(xmlEventReader);
             } else {
                 StaxParserUtil.getNextEvent(xmlEventReader);
             }

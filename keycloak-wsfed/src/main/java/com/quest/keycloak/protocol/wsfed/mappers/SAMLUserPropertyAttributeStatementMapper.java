@@ -29,7 +29,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class SAMLUserPropertyAttributeStatementMapper extends AbstractWsfedProtocolMapper implements WSFedSAMLAttributeStatementMapper {
-    private static final List<ProviderConfigProperty> configProperties = new ArrayList<ProviderConfigProperty>();
+    private static final List<ProviderConfigProperty> configProperties = new ArrayList<>();
 
     static {
         UserPropertyAttributeStatementMapper mapper = new UserPropertyAttributeStatementMapper();

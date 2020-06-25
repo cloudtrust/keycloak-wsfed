@@ -41,7 +41,7 @@ import org.mockito.MockitoAnnotations;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
-import io.cloudtrust.keycloak.exceptions.CtRuntimeException;
+import io.cloudtrust.exception.CloudtrustRuntimeException;
 
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
@@ -99,7 +99,7 @@ public class MockHelper {
     @Mock
     private AuthenticationSessionModel authSession;
     @Mock
-    private ClientSessionCode accessCode;
+    private ClientSessionCode<?> accessCode;
     @Mock
     private UserSessionModel userSessionModel;
 
@@ -168,13 +168,13 @@ public class MockHelper {
             generator.initialize(2048);
             keyPair = generator.generateKeyPair();
         } catch (NoSuchAlgorithmException e) {
-            throw new CtRuntimeException(e);
+            throw new CloudtrustRuntimeException(e);
         }
         X509Certificate certificate = null;
         try {
             certificate = CertificateUtils.generateV1SelfSignedCertificate(keyPair, realm.getName());
         } catch (Exception e) {
-            throw new CtRuntimeException(e);
+            throw new CloudtrustRuntimeException(e);
         }
 
         KeyWrapper activeKeyWrapper = new KeyWrapper();

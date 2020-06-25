@@ -56,7 +56,9 @@ import javax.xml.datatype.DatatypeFactory;
 import javax.xml.datatype.XMLGregorianCalendar;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.security.PublicKey;
@@ -64,14 +66,18 @@ import java.security.cert.X509Certificate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 
 /**
  * @author <a href="mailto:kevin.horvatin@software.dell.com">Kevin Horvatin</a>
  * @version $Revision: 1 $
  */
 public class WSFedEndpoint {
-    public static final String WSFED_REQUESTED_TOKEN = "WSFED_REQUESTED_TOKEN";
     protected static final Logger logger = Logger.getLogger(WSFedEndpoint.class);
+
+    public static final String WSFED_REQUESTED_TOKEN = "WSFED_REQUESTED_TOKEN";
+    private static final String ACTIVE_CODE = "active_code"; // duplicating because ClientSessionCode.ACTIVE_CODE is private
+
     protected RealmModel realm;
     protected EventBuilder event;
     protected WSFedIdentityProviderConfig config;
@@ -135,8 +141,7 @@ public class WSFedEndpoint {
         if (context != null) {
             // strip out any additions made for C-BAS, e.g. &username=xxx, etc.
             // otherwise it will choke while trying to process it as a code
-            String[] contextParts = context.split("&");
-            context = contextParts[0];
+            context = context.split("&")[0];
         }
         if (wsfedAction == null && config.handleEmptyActionAsLogout()) {
             return handleSignoutResponse(context);
@@ -147,10 +152,12 @@ public class WSFedEndpoint {
             return response;
         if (wsfedResult != null)
             return handleWsFedResponse(wsfedResult, context);
-        if (wsfedAction.compareTo(WSFedConstants.WSFED_SIGNOUT_ACTION) == 0)
+        if (WSFedConstants.WSFED_SIGNOUT_ACTION.equals(wsfedAction)) {
             return handleSignoutRequest(context);
-        if (wsfedAction.compareTo(WSFedConstants.WSFED_SIGNOUT_CLEANUP_ACTION) == 0)
+        }
+        if (WSFedConstants.WSFED_SIGNOUT_CLEANUP_ACTION.equals(wsfedAction)) {
             return handleSignoutResponse(context);
+        }
 
         return ErrorPage.error(session, null, Response.Status.BAD_REQUEST, Messages.INVALID_REQUEST);
     }
@@ -226,39 +233,13 @@ public class WSFedEndpoint {
         return map;
     }
 
-    protected Response handleLoginResponse(String wsfedResponse, RequestedToken token, String context) throws IdentityBrokerException {
+    protected Response handleLoginResponse(String wsfedResponse, RequestedToken token, String context) {
         try {
             BrokeredIdentityContext identity = new BrokeredIdentityContext(token.getId());
             if (context != null) {
-                String decodedContext = URLDecoder.decode(context, StandardCharsets.UTF_8.name());
-                if (decodedContext.contains("redirectUri=")) {
-                    Map<String, String> map = getContextParameters(decodedContext);
-                    String redirectUri = URLDecoder.decode(map.get("redirectUri"), StandardCharsets.UTF_8.name());
-                    if (decodedContext.contains("&code=")) {
-                        //TODO not sure that we indeed have a AuthenticationSessionModel here. It could potentially be a AuthenticatedClientSessionModel. ALSO tabID set to null, but likely broken
-                        ClientSessionCode.ParseResult<AuthenticationSessionModel> clientCode = ClientSessionCode.parseResult(map.get("code"), null, this.session, this.session.getContext().getRealm(), this.session.getContext().getClient(), event, AuthenticationSessionModel.class);
-                        if (clientCode != null && clientCode.getCode().isValid(CommonClientSessionModel.Action.AUTHENTICATE.name(), ClientSessionCode.ActionType.LOGIN)) {
-                            String ACTIVE_CODE = "active_code"; // duplicating because ClientSessionCode.ACTIVE_CODE is private
-                            // restore ACTIVE_CODE note because it must have been removed by parse() if code==activeCode
-                            clientCode.getClientSession().setClientNote(ACTIVE_CODE, map.get("code"));
-
-                            // set authorization code and redirectUri
-                            identity.setCode(map.get("code"));
-                            identity.getContextData().put(WSFedConstants.WSFED_CONTEXT, redirectUri);
-                        } else {
-                            /*
-                             * browser session expired, redirect to original URL
-                             * which if protected would trigger SSO
-                             */
-                            return Response.seeOther(new URI(redirectUri)).build();
-                        }
-                    } else {
-                        // only redirectUri (User added by subscription admin)
-                        return Response.seeOther(new URI(redirectUri)).build();
-                    }
-                } else {
-                    // regular login with no create user parameters
-                    identity.setCode(decodedContext);
+                Response resp = apply(identity, context);
+                if (resp!=null) {
+                    return resp;
                 }
             }
             //This token has to be something that the broker code can deserialize. So using our RequestedToken class doesn't work because it can't find the class
@@ -272,19 +253,9 @@ public class WSFedEndpoint {
                         "set for Keycloak to be able to link the external IdP user to a local user");
             }
 
-            if (token.getEmail() != null) {
-                identity.setEmail(token.getEmail());
-            }
-
-            String givenName;
-            if ((givenName = token.getFirstName()) != null) {
-                identity.setFirstName(givenName);
-            }
-
-            String surName;
-            if ((surName = token.getLastName()) != null) {
-                identity.setLastName(surName);
-            }
+            whenNotNull(token.getEmail(), identity::setEmail);
+            whenNotNull(token.getFirstName(), identity::setFirstName);
+            whenNotNull(token.getLastName(), identity::setLastName);
 
             if (config.isStoreToken()) {
                 identity.setToken(wsfedResponse);
@@ -299,11 +270,49 @@ public class WSFedEndpoint {
             }
 
             return callback.authenticated(identity);
-
         } catch (IdentityBrokerException e) {
             throw e;
         } catch (Exception e) {
             throw new IdentityBrokerException("Could not process response from WS-Fed identity provider.", e);
+        }
+    }
+
+    private Response apply(BrokeredIdentityContext identity, String context) throws URISyntaxException, UnsupportedEncodingException {
+        String decodedContext = URLDecoder.decode(context, StandardCharsets.UTF_8.name());
+        if (decodedContext.contains("redirectUri=")) {
+            Map<String, String> map = getContextParameters(decodedContext);
+            String redirectUri = URLDecoder.decode(map.get("redirectUri"), StandardCharsets.UTF_8.name());
+            if (decodedContext.contains("&code=")) {
+                //TODO not sure that we indeed have a AuthenticationSessionModel here. It could potentially be a AuthenticatedClientSessionModel. ALSO tabID set to null, but likely broken
+                ClientSessionCode.ParseResult<AuthenticationSessionModel> clientCode = ClientSessionCode.parseResult(map.get("code"), null, this.session, this.session.getContext().getRealm(), this.session.getContext().getClient(), event, AuthenticationSessionModel.class);
+                if (clientCode != null && clientCode.getCode().isValid(CommonClientSessionModel.Action.AUTHENTICATE.name(), ClientSessionCode.ActionType.LOGIN)) {
+                    // restore ACTIVE_CODE note because it must have been removed by parse() if code==activeCode
+                    clientCode.getClientSession().setClientNote(ACTIVE_CODE, map.get("code"));
+
+                    // set authorization code and redirectUri
+                    identity.setCode(map.get("code"));
+                    identity.getContextData().put(WSFedConstants.WSFED_CONTEXT, redirectUri);
+                } else {
+                    /*
+                     * browser session expired, redirect to original URL
+                     * which if protected would trigger SSO
+                     */
+                    return Response.seeOther(new URI(redirectUri)).build();
+                }
+            } else {
+                // only redirectUri (User added by subscription admin)
+                return Response.seeOther(new URI(redirectUri)).build();
+            }
+        } else {
+            // regular login with no create user parameters
+            identity.setCode(decodedContext);
+        }
+        return null;
+    }
+
+    private static void whenNotNull(String value, Consumer<String> action) {
+        if (value!=null) {
+            action.accept(value);
         }
     }
 
@@ -348,7 +357,7 @@ public class WSFedEndpoint {
         }
     }
 
-    protected boolean hasExpired(RequestSecurityTokenResponse rstr) throws ConfigurationException, DatatypeConfigurationException {
+    protected boolean hasExpired(RequestSecurityTokenResponse rstr) throws DatatypeConfigurationException {
         boolean expiry = false;
         Lifetime lifetime = rstr.getLifetime();
         if (lifetime != null) {
@@ -363,13 +372,11 @@ public class WSFedEndpoint {
             }
 
             XMLGregorianCalendar notOnOrAfter = lifetime.getExpires();
-
             if (notOnOrAfter != null) {
                 logger.trace("RequestSecurityTokenResponse: " + rstr.getContext() + " ::Now=" + now.toXMLFormat() + " ::notOnOrAfter=" + notOnOrAfter);
             }
 
             expiry = !XMLTimeUtil.isValid(now, notBefore, notOnOrAfter);
-
             if (expiry) {
                 logger.info("RequestSecurityTokenResponse has expired with context=" + rstr.getContext());
             }

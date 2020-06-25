@@ -20,6 +20,10 @@ import java.io.ByteArrayOutputStream;
 
 public class AssertionUtil {
     private static final PicketLinkLogger logger = PicketLinkLoggerFactory.getLogger();
+
+    private AssertionUtil() {
+    }
+
     /**
      * Given {@code AssertionType}, convert it into a DOM Document.
      *

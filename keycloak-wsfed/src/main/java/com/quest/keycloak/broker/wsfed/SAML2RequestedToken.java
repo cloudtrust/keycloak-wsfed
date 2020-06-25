@@ -23,7 +23,6 @@ import org.keycloak.dom.saml.v2.assertion.AssertionType;
 import org.keycloak.dom.saml.v2.assertion.AttributeStatementType;
 import org.keycloak.dom.saml.v2.assertion.AttributeType;
 import org.keycloak.dom.saml.v2.assertion.AudienceRestrictionType;
-import org.keycloak.dom.saml.v2.assertion.ConditionAbstractType;
 import org.keycloak.dom.saml.v2.assertion.EncryptedAssertionType;
 import org.keycloak.dom.saml.v2.assertion.NameIDType;
 import org.keycloak.dom.saml.v2.assertion.SubjectType;
@@ -52,12 +51,18 @@ import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 
 import javax.ws.rs.core.Response;
+import javax.xml.datatype.DatatypeConfigurationException;
 import javax.xml.datatype.DatatypeFactory;
 import javax.xml.datatype.XMLGregorianCalendar;
 import javax.xml.namespace.QName;
+import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.xpath.XPathExpressionException;
+
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.util.List;
@@ -66,8 +71,9 @@ import java.util.List;
  * Created on 5/15/15.
  */
 public class SAML2RequestedToken implements RequestedToken {
-    private NameIDType subjectNameID;
     protected static final Logger logger = Logger.getLogger(SAML2RequestedToken.class);
+
+    private NameIDType subjectNameID;
     private AssertionType saml2Assertion;
     private String wsfedResponse;
     private KeycloakSession session;
@@ -106,8 +112,7 @@ public class SAML2RequestedToken implements RequestedToken {
                 event.error(Errors.INVALID_SAML_RESPONSE);
                 return ErrorPage.error(session, null, Response.Status.BAD_REQUEST, Messages.INVALID_FEDERATED_IDENTITY_ACTION);
             }
-
-        } catch (Exception e) {
+        } catch (GeneralSecurityException | DatatypeConfigurationException | XPathExpressionException | ParserConfigurationException e) {
             logger.error("Unable to validate signature", e);
             event.event(EventType.IDENTITY_PROVIDER_RESPONSE);
             event.error(Errors.INVALID_SAML_RESPONSE);
@@ -117,7 +122,7 @@ public class SAML2RequestedToken implements RequestedToken {
         return null;
     }
 
-    public boolean isValidAudienceRestriction(URI...uris) {
+    protected boolean isValidAudienceRestriction(URI... uris) {
         List<URI> audienceRestriction = getAudienceRestrictions();
 
         if(audienceRestriction == null) {
@@ -134,14 +139,11 @@ public class SAML2RequestedToken implements RequestedToken {
     }
 
     public List<URI> getAudienceRestrictions() {
-        List<ConditionAbstractType> conditions = saml2Assertion.getConditions().getConditions();
-        for(ConditionAbstractType condition : conditions) {
-            if(condition instanceof AudienceRestrictionType) {
-                return ((AudienceRestrictionType) condition).getAudience();
-            }
-        }
-
-        return null;
+        return saml2Assertion.getConditions().getConditions().stream()
+            .filter(c -> c instanceof AudienceRestrictionType)
+            .map(c -> ((AudienceRestrictionType)c).getAudience())
+            .findFirst()
+            .orElse(null);
     }
 
     protected NameIDType getSubjectNameID() {
@@ -185,12 +187,11 @@ public class SAML2RequestedToken implements RequestedToken {
         for (AttributeStatementType attrStatement : saml2Assertion.getAttributeStatements()) {
             for (AttributeStatementType.ASTChoiceType choice : attrStatement.getAttributes()) {
                 AttributeType attribute = choice.getAttribute();
-                if (X500SAMLProfileConstants.EMAIL.getFriendlyName().equals(attribute.getFriendlyName())
-                        || X500SAMLProfileConstants.EMAIL.get().equals(attribute.getName())
-                        || "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress".equals(attribute.getName())) {
-                    if (!attribute.getAttributeValue().isEmpty()) {
-                        return attribute.getAttributeValue().get(0).toString();
-                    }
+                List<Object> attributeValue = attribute.getAttributeValue();
+                if (!attributeValue.isEmpty() && (X500SAMLProfileConstants.EMAIL.getFriendlyName().equals(attribute.getFriendlyName())
+                    || X500SAMLProfileConstants.EMAIL.get().equals(attribute.getName())
+                    || "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress".equals(attribute.getName()))) {
+                    return attributeValue.get(0).toString();
                 }
             }
         }
@@ -209,12 +210,12 @@ public class SAML2RequestedToken implements RequestedToken {
         return null;
     }
 
-    public AssertionType getAssertionType(Object token, RealmModel realm) throws IOException, ParsingException, ProcessingException, ConfigurationException {
+    protected AssertionType getAssertionType(Object token, RealmModel realm) throws IOException, ParsingException, ProcessingException, ConfigurationException {
         AssertionType assertionType =  null;
         SAMLParser parser = SAMLParser.getInstance();
         String assertionXml = DocumentUtil.asString(((Element) token).getOwnerDocument());
 
-        try (ByteArrayInputStream bis = new ByteArrayInputStream(assertionXml.getBytes())) {
+        try (ByteArrayInputStream bis = new ByteArrayInputStream(assertionXml.getBytes(StandardCharsets.UTF_8))) {
             Object assertion = parser.parse(bis);
 
             if (assertion instanceof EncryptedAssertionType) {

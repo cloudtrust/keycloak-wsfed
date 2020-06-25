@@ -105,38 +105,35 @@ public class SAML2AssertionTypeBuilder {
         assertion.getConditions().addCondition(audience);
 
         //Update Conditions NotOnOrAfter
-        if(assertionExpiration > 0) {
+        if (assertionExpiration > 0) {
             ConditionsType conditions = assertion.getConditions();
-            conditions.setNotOnOrAfter(XMLTimeUtil.add(conditions.getNotBefore(), assertionExpiration * 1000));
+            conditions.setNotOnOrAfter(XMLTimeUtil.add(conditions.getNotBefore(), assertionExpiration * 1000L));
         }
 
         //Update SubjectConfirmationData NotOnOrAfter
-        if(subjectExpiration > 0) {
+        if (subjectExpiration > 0) {
             SubjectConfirmationType sct = assertion.getSubject().getConfirmation().get(0);
             sct.setMethod("urn:oasis:names:tc:SAML:2.0:cm:bearer");
             SubjectConfirmationDataType subjectConfirmationData = new SubjectConfirmationDataType();
             sct.setSubjectConfirmationData(subjectConfirmationData);
             subjectConfirmationData.setNotBefore(assertion.getConditions().getNotBefore());
-            subjectConfirmationData.setNotOnOrAfter(XMLTimeUtil.add(assertion.getConditions().getNotBefore(), subjectExpiration * 1000));
+            subjectConfirmationData.setNotOnOrAfter(XMLTimeUtil.add(assertion.getConditions().getNotBefore(), subjectExpiration * 1000L));
         }
 
         return assertion;
     }
 
-    public XMLGregorianCalendar getXMLGregorianCalendarNow() throws DatatypeConfigurationException
-    {
+    public XMLGregorianCalendar getXMLGregorianCalendarNow() throws DatatypeConfigurationException {
         GregorianCalendar gregorianCalendar = new GregorianCalendar();
         DatatypeFactory datatypeFactory = DatatypeFactory.newInstance();
-        XMLGregorianCalendar now =
-                datatypeFactory.newXMLGregorianCalendar(gregorianCalendar);
-        return now;
+        return datatypeFactory.newXMLGregorianCalendar(gregorianCalendar);
     }
 
     protected NameIDType getNameIDType(String responseIssuer, String nameIdFormat) {
         NameIDType nameIDType = new NameIDType();
         nameIDType.setValue(responseIssuer);
 
-        if(nameIdFormat != null) {
+        if (nameIdFormat != null) {
             nameIDType.setFormat(URI.create(nameIdFormat));
         }
 

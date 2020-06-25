@@ -19,6 +19,8 @@ package com.quest.keycloak.broker.wsfed.mappers;
 import com.quest.keycloak.broker.wsfed.WSFedEndpoint;
 import com.quest.keycloak.broker.wsfed.WSFedIdentityProviderFactory;
 import com.quest.keycloak.common.wsfed.utils.AttributeUtils;
+
+import org.apache.commons.lang3.StringUtils;
 import org.jboss.logging.Logger;
 import org.keycloak.broker.provider.AbstractIdentityProviderMapper;
 import org.keycloak.broker.provider.BrokeredIdentityContext;
@@ -28,41 +30,28 @@ import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.provider.ProviderConfigProperty;
+import org.keycloak.provider.ProviderConfigurationBuilder;
 
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class UserAttributeMapper extends AbstractIdentityProviderMapper {
-    private static final Logger logger = Logger.getLogger(AttributeToRoleMapper.class);
+    private static final Logger logger = Logger.getLogger(UserAttributeMapper.class);
 
-    private static final String[] COMPATIBLE_PROVIDERS = {WSFedIdentityProviderFactory.PROVIDER_ID};
+    private static final List<String> COMPATIBLE_PROVIDERS = Arrays.asList(WSFedIdentityProviderFactory.PROVIDER_ID);
 
-    private static final List<ProviderConfigProperty> configProperties = new ArrayList<>();
+    private static final List<ProviderConfigProperty> configProperties;
 
     public static final String ATTRIBUTE_NAME = "attribute.name";
     public static final String ATTRIBUTE_FRIENDLY_NAME = "attribute.friendly.name";
     public static final String USER_ATTRIBUTE = "user.attribute";
 
     static {
-        ProviderConfigProperty property;
-        property = new ProviderConfigProperty();
-        property.setName(ATTRIBUTE_NAME);
-        property.setLabel("Attribute Name");
-        property.setHelpText("Name of attribute to search for in assertion.  You can leave this blank and specify a friendly name instead.");
-        property.setType(ProviderConfigProperty.STRING_TYPE);
-        configProperties.add(property);
-        property = new ProviderConfigProperty();
-        property.setName(ATTRIBUTE_FRIENDLY_NAME);
-        property.setLabel("Friendly Name");
-        property.setHelpText("Friendly name of attribute to search for in assertion.  You can leave this blank and specify a name instead.");
-        property.setType(ProviderConfigProperty.STRING_TYPE);
-        configProperties.add(property);
-        property = new ProviderConfigProperty();
-        property.setName(USER_ATTRIBUTE);
-        property.setLabel("User Attribute Name");
-        property.setHelpText("User attribute name to store saml attribute.");
-        property.setType(ProviderConfigProperty.STRING_TYPE);
-        configProperties.add(property);
+        configProperties = ProviderConfigurationBuilder.create()
+            .property(ATTRIBUTE_NAME, "Attribute Name", "Name of attribute to search for in assertion. You can leave this blank and specify a friendly name instead.", ProviderConfigProperty.STRING_TYPE, null, null)
+            .property(ATTRIBUTE_FRIENDLY_NAME, "Friendly Name", "Friendly name of attribute to search for in assertion. You can leave this blank and specify a name instead.", ProviderConfigProperty.STRING_TYPE, null, null)
+            .property(USER_ATTRIBUTE, "User Attribute Name", "User attribute name to store saml attribute.", ProviderConfigProperty.STRING_TYPE, null, null)
+            .build();
     }
 
     public static final String PROVIDER_ID = "wsfed-user-attribute-idp-mapper";
@@ -79,7 +68,7 @@ public class UserAttributeMapper extends AbstractIdentityProviderMapper {
 
     @Override
     public String[] getCompatibleProviders() {
-        return COMPATIBLE_PROVIDERS;
+        return COMPATIBLE_PROVIDERS.toArray(new String[COMPATIBLE_PROVIDERS.size()]);
     }
 
     @Override
@@ -102,19 +91,16 @@ public class UserAttributeMapper extends AbstractIdentityProviderMapper {
     }
 
     protected String getAttribute(IdentityProviderMapperModel mapperModel, BrokeredIdentityContext context) {
-        String name = mapperModel.getConfig().get(ATTRIBUTE_NAME);
-        if (name != null && name.trim().equals("")) name = null;
-        String friendly = mapperModel.getConfig().get(ATTRIBUTE_FRIENDLY_NAME);
-        if (friendly != null && friendly.trim().equals("")) friendly = null;
+        String name = StringUtils.defaultIfBlank(mapperModel.getConfig().get(ATTRIBUTE_NAME), null);
+        String friendly = StringUtils.defaultIfBlank(mapperModel.getConfig().get(ATTRIBUTE_FRIENDLY_NAME), null);
 
         try {
             Object token = context.getContextData().get(WSFedEndpoint.WSFED_REQUESTED_TOKEN);
 
             if (token instanceof AssertionType) {
                 return getAttribute((AssertionType) token, name, friendly);
-            }
-            //TODO: else if token type == JWSInput
-            else {
+            } else {
+                //TODO: else if token type == JWSInput
                 logger.warn("WS-Fed user attribute mapper doesn't currently support this token type.");
             }
         } catch (Exception ex) {
@@ -136,13 +122,14 @@ public class UserAttributeMapper extends AbstractIdentityProviderMapper {
     public void updateBrokeredUser(KeycloakSession session, RealmModel realm, UserModel user, IdentityProviderMapperModel mapperModel, BrokeredIdentityContext context) {
         String attribute = mapperModel.getConfig().get(USER_ATTRIBUTE);
         Object value = getAttribute(mapperModel, context);
-        String current = user.getFirstAttribute(attribute);
-        if (value != null && !value.equals(current)) {
-            user.setSingleAttribute(attribute, value.toString());
-        } else if (value == null) {
+        if (value == null) {
             user.removeAttribute(attribute);
+        } else {
+            String current = user.getFirstAttribute(attribute);
+            if (!value.equals(current)) {
+                user.setSingleAttribute(attribute, value.toString());
+            }
         }
-
     }
 
     @Override

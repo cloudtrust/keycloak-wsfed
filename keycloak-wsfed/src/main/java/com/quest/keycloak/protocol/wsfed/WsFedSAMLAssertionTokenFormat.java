@@ -18,7 +18,7 @@
 
 package com.quest.keycloak.protocol.wsfed;
 
-import io.cloudtrust.keycloak.exceptions.CtRuntimeException;
+import io.cloudtrust.exception.CloudtrustRuntimeException;
 
 /**
  * @author <a href="mailto:brat000012001@gmail.com">Peter Nalyvayko</a>
@@ -46,6 +46,6 @@ public enum WsFedSAMLAssertionTokenFormat {
                 return value;
             }
         }
-        throw new CtRuntimeException("Invalid saml assertion token format enumeration");
+        throw new CloudtrustRuntimeException("Invalid saml assertion token format enumeration");
     }
 }

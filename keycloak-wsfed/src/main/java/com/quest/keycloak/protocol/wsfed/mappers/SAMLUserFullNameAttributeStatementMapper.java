@@ -36,7 +36,7 @@ import java.util.List;
 
 public class SAMLUserFullNameAttributeStatementMapper extends AbstractWsfedProtocolMapper implements WSFedSAMLAttributeStatementMapper {
 
-    private static final List<ProviderConfigProperty> configProperties = new ArrayList<ProviderConfigProperty>();
+    private static final List<ProviderConfigProperty> configProperties = new ArrayList<>();
     public static final String PROVIDER_ID = "wsfed-saml-user-full-name-mapper";
 
     static {
@@ -57,7 +57,7 @@ public class SAMLUserFullNameAttributeStatementMapper extends AbstractWsfedProto
     @Override
     public void transformAttributeStatement(AttributeStatementType attributeStatement, ProtocolMapperModel mappingModel, KeycloakSession session, UserSessionModel userSession, AuthenticatedClientSessionModel clientSession) {
         String attributeValue = resolveFullName(userSession);
-        if (attributeValue == null) return;
+        // Can't be null
         AttributeStatementHelper.addAttribute(attributeStatement, mappingModel, attributeValue);
     }
 

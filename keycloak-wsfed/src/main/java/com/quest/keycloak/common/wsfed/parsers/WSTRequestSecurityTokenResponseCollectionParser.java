@@ -17,6 +17,8 @@
  */
 package com.quest.keycloak.common.wsfed.parsers;
 
+import org.picketlink.common.PicketLinkLogger;
+import org.picketlink.common.PicketLinkLoggerFactory;
 import org.picketlink.common.constants.WSTrustConstants;
 import org.picketlink.common.exceptions.ParsingException;
 import org.picketlink.common.parsers.ParserNamespaceSupport;
@@ -35,6 +37,7 @@ import javax.xml.stream.events.StartElement;
  * @since Nov 11, 2010
  */
 public class WSTRequestSecurityTokenResponseCollectionParser implements ParserNamespaceSupport {
+    private static final PicketLinkLogger logger = PicketLinkLoggerFactory.getLogger();
 
     /**
      * @see ParserNamespaceSupport#parse(XMLEventReader)
@@ -47,15 +50,17 @@ public class WSTRequestSecurityTokenResponseCollectionParser implements ParserNa
         // Peek at the next event
         while (xmlEventReader.hasNext()) {
             StartElement peekedElement = StaxParserUtil.peekNextStartElement(xmlEventReader);
-            if (peekedElement == null)
+            if (peekedElement == null) {
                 break;
+            }
 
             String tag = StaxParserUtil.getStartElementName(peekedElement);
 
             if (WSTrustConstants.RSTR.equalsIgnoreCase(tag)) {
-                WSTRequestSecurityTokenResponseParser rstrParser = new WSTRequestSecurityTokenResponseParser();
-                RequestSecurityTokenResponse rstr = (RequestSecurityTokenResponse) rstrParser.parse(xmlEventReader);
+                RequestSecurityTokenResponse rstr = (RequestSecurityTokenResponse) new WSTRequestSecurityTokenResponseParser().parse(xmlEventReader);
                 requestCollection.addRequestSecurityTokenResponse(rstr);
+            } else {
+                throw logger.parserUnknownTag(peekedElement.getName().getLocalPart(), peekedElement.getLocation());
             }
         }
         return requestCollection;
@@ -65,7 +70,6 @@ public class WSTRequestSecurityTokenResponseCollectionParser implements ParserNa
      * @see ParserNamespaceSupport#supports(QName)
      */
     public boolean supports(QName qname) {
-        return (qname.getNamespaceURI().equals(WSTrustConstants.BASE_NAMESPACE) && qname.getLocalPart().equals(
-                WSTrustConstants.RSTR_COLLECTION));
+        return WSTrustConstants.BASE_NAMESPACE.equals(qname.getNamespaceURI()) && WSTrustConstants.RSTR_COLLECTION.equals(qname.getLocalPart());
     }
 }

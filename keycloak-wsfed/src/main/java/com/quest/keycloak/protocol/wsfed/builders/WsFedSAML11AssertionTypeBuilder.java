@@ -34,7 +34,6 @@ import org.keycloak.protocol.ProtocolMapper;
 import org.keycloak.protocol.saml.SamlProtocol;
 import com.quest.keycloak.protocol.wsfed.mappers.WSFedSAMLAttributeStatementMapper;
 import com.quest.keycloak.protocol.wsfed.mappers.WSFedSAMLRoleListMapper;
-import org.keycloak.protocol.saml.mappers.AttributeStatementHelper;
 import org.keycloak.saml.common.constants.JBossSAMLURIConstants;
 import org.keycloak.saml.common.exceptions.ConfigurationException;
 
@@ -67,7 +66,7 @@ public class WsFedSAML11AssertionTypeBuilder extends WsFedSAMLAssertionTypeAbstr
         return this;
     }
 
-    private final class SAML11AttributeArrayMapper {
+    private static final class SAML11AttributeArrayMapper {
         SAML11AttributeStatementType attributeStatement;
         SAML11AttributeArrayMapper(SAML11AttributeStatementType attributeStatement) {
             this.attributeStatement = attributeStatement;

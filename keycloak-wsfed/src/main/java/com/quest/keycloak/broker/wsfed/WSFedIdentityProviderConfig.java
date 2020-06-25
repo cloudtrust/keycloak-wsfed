@@ -18,6 +18,7 @@ package com.quest.keycloak.broker.wsfed;
 
 import org.keycloak.models.IdentityProviderModel;
 
+@SuppressWarnings("serial")
 public class WSFedIdentityProviderConfig extends IdentityProviderModel {
 
     public WSFedIdentityProviderConfig() {
@@ -44,7 +45,7 @@ public class WSFedIdentityProviderConfig extends IdentityProviderModel {
     }
 
     public boolean isValidateSignature() {
-        return Boolean.valueOf(getConfig().get("validateSignature"));
+        return Boolean.parseBoolean(getConfig().get("validateSignature"));
     }
 
     public void setValidateSignature(boolean validateSignature) {
@@ -68,7 +69,7 @@ public class WSFedIdentityProviderConfig extends IdentityProviderModel {
     }
 
     public boolean isBackchannelSupported() {
-        return Boolean.valueOf(getConfig().get("backchannelSupported"));
+        return Boolean.parseBoolean(getConfig().get("backchannelSupported"));
     }
 
     public void setBackchannelSupported(boolean backchannel) {
@@ -76,7 +77,7 @@ public class WSFedIdentityProviderConfig extends IdentityProviderModel {
     }
 
     public boolean handleEmptyActionAsLogout() {
-        return Boolean.valueOf(getConfig().get("emptyActionHandledAsLogout"));
+        return Boolean.parseBoolean(getConfig().get("emptyActionHandledAsLogout"));
     }
 
     public void setHandleEmptyActionAsLogout(boolean handleAsLogout) {

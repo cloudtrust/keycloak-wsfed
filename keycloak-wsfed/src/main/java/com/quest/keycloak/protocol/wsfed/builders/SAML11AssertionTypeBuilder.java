@@ -27,7 +27,7 @@ import org.keycloak.saml.processing.core.saml.v2.common.IDGenerator;
 import org.keycloak.saml.processing.core.saml.v2.util.AssertionUtil;
 import org.keycloak.saml.processing.core.saml.v2.util.XMLTimeUtil;
 
-import io.cloudtrust.keycloak.exceptions.CtRuntimeException;
+import io.cloudtrust.exception.CloudtrustRuntimeException;
 
 import javax.xml.datatype.DatatypeConfigurationException;
 import javax.xml.datatype.DatatypeFactory;
@@ -47,9 +47,9 @@ import java.util.GregorianCalendar;
 public class SAML11AssertionTypeBuilder {
     protected static final Logger logger = Logger.getLogger(SAML11AssertionTypeBuilder.class);
 
-    private static final String ATTRIBUTE_NAMESPACE = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims";
+    // ATTRIBUTE_NAMESPACE = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims"
 
-    public final static long CLOCK_SKEW = 2000; // in milliseconds
+    public static final long CLOCK_SKEW = 2000; // in milliseconds
 
     protected String requestID;
     protected String issuer;
@@ -137,11 +137,11 @@ public class SAML11AssertionTypeBuilder {
                 conditions = assertion.getConditions();
             }
             catch(IssueInstantMissingException ex) {
-                throw new CtRuntimeException(ex);
+                throw new CloudtrustRuntimeException(ex);
             }
         }
         if (conditions == null) {
-            throw new CtRuntimeException("Failed to create timed conditions");
+            throw new CloudtrustRuntimeException("Failed to create timed conditions");
         }
         conditions.add(audience);
         assertion.setConditions(conditions);

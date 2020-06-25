@@ -48,79 +48,79 @@ public class WSFedProtocolParametersTest {
         requestParams.add(WSFedConstants.WSFED_RESULT_URL, "resurl");
 
         WSFedProtocolParameters params = WSFedProtocolParameters.fromParameters(requestParams);
-        assertEquals(requestParams.getFirst(WSFedConstants.WSFED_ACTION), params.getWsfed_action());
-        assertEquals(requestParams.getFirst(WSFedConstants.WSFED_REPLY), params.getWsfed_reply());
-        assertEquals(requestParams.getFirst(WSFedConstants.WSFED_CONTEXT), params.getWsfed_context());
-        assertEquals(requestParams.getFirst(WSFedConstants.WSFED_POLICY), params.getWsfed_policy());
-        assertEquals(requestParams.getFirst(WSFedConstants.WSFED_CURRENT_TIME), params.getWsfed_current_time());
-        assertEquals(requestParams.getFirst(WSFedConstants.WSFED_FEDERATION_ID), params.getWsfed_federation_id());
-        assertEquals(requestParams.getFirst(WSFedConstants.WSFED_ENCODING), params.getWsfed_encoding());
-        assertEquals(requestParams.getFirst(WSFedConstants.WSFED_REALM), params.getWsfed_realm());
-        assertEquals(requestParams.getFirst(WSFedConstants.WSFED_FRESHNESS), params.getWsfed_freshness());
-        assertEquals(requestParams.getFirst(WSFedConstants.WSFED_AUTHENTICATION_LEVEL), params.getWsfed_authentication_level());
-        assertEquals(requestParams.getFirst(WSFedConstants.WSFED_TOKEN_REQUEST_TYPE), params.getWsfed_token_request_type());
-        assertEquals(requestParams.getFirst(WSFedConstants.WSFED_HOME_REALM), params.getWsfed_home_realm());
-        assertEquals(requestParams.getFirst(WSFedConstants.WSFED_REQUEST_URL), params.getWsfed_request_url());
-        assertEquals(requestParams.getFirst(WSFedConstants.WSFED_RESULT), params.getWsfed_result());
-        assertEquals(requestParams.getFirst(WSFedConstants.WSFED_RESULT_URL), params.getWsfed_result_url());
+        assertEquals(requestParams.getFirst(WSFedConstants.WSFED_ACTION), params.getWsfedAction());
+        assertEquals(requestParams.getFirst(WSFedConstants.WSFED_REPLY), params.getWsfedReply());
+        assertEquals(requestParams.getFirst(WSFedConstants.WSFED_CONTEXT), params.getWsfedContext());
+        assertEquals(requestParams.getFirst(WSFedConstants.WSFED_POLICY), params.getWsfedPolicy());
+        assertEquals(requestParams.getFirst(WSFedConstants.WSFED_CURRENT_TIME), params.getWsfedCurrentTime());
+        assertEquals(requestParams.getFirst(WSFedConstants.WSFED_FEDERATION_ID), params.getWsfedFederationId());
+        assertEquals(requestParams.getFirst(WSFedConstants.WSFED_ENCODING), params.getWsfedEncoding());
+        assertEquals(requestParams.getFirst(WSFedConstants.WSFED_REALM), params.getWsfedRealm());
+        assertEquals(requestParams.getFirst(WSFedConstants.WSFED_FRESHNESS), params.getWsfedFreshness());
+        assertEquals(requestParams.getFirst(WSFedConstants.WSFED_AUTHENTICATION_LEVEL), params.getWsfedAuthenticationLevel());
+        assertEquals(requestParams.getFirst(WSFedConstants.WSFED_TOKEN_REQUEST_TYPE), params.getWsfedTokenRequestType());
+        assertEquals(requestParams.getFirst(WSFedConstants.WSFED_HOME_REALM), params.getWsfedHomeRealm());
+        assertEquals(requestParams.getFirst(WSFedConstants.WSFED_REQUEST_URL), params.getWsfedRequestUrl());
+        assertEquals(requestParams.getFirst(WSFedConstants.WSFED_RESULT), params.getWsfedResult());
+        assertEquals(requestParams.getFirst(WSFedConstants.WSFED_RESULT_URL), params.getWsfedResultUrl());
     }
 
     @Test
     public void testFromParametersNull() {
         MultivaluedMap<String, String> requestParams = new MultivaluedMapImpl<>();
         WSFedProtocolParameters params = WSFedProtocolParameters.fromParameters(requestParams);
-        assertNull(params.getWsfed_action());
-        assertNull(params.getWsfed_reply());
-        assertNull(params.getWsfed_context());
-        assertNull(params.getWsfed_policy());
-        assertNull(params.getWsfed_current_time());
-        assertNull(params.getWsfed_federation_id());
-        assertNull(params.getWsfed_encoding());
-        assertNull(params.getWsfed_realm());
-        assertNull(params.getWsfed_freshness());
-        assertNull(params.getWsfed_authentication_level());
-        assertNull(params.getWsfed_token_request_type());
-        assertNull(params.getWsfed_home_realm());
-        assertNull(params.getWsfed_request_url());
-        assertNull(params.getWsfed_result());
-        assertNull(params.getWsfed_result_url());
+        assertNull(params.getWsfedAction());
+        assertNull(params.getWsfedReply());
+        assertNull(params.getWsfedContext());
+        assertNull(params.getWsfedPolicy());
+        assertNull(params.getWsfedCurrentTime());
+        assertNull(params.getWsfedFederationId());
+        assertNull(params.getWsfedEncoding());
+        assertNull(params.getWsfedRealm());
+        assertNull(params.getWsfedFreshness());
+        assertNull(params.getWsfedAuthenticationLevel());
+        assertNull(params.getWsfedTokenRequestType());
+        assertNull(params.getWsfedHomeRealm());
+        assertNull(params.getWsfedRequestUrl());
+        assertNull(params.getWsfedResult());
+        assertNull(params.getWsfedResultUrl());
     }
 
     @Test
     public void testSetters() {
         WSFedProtocolParameters params = new WSFedProtocolParameters();
 
-        params.setWsfed_action("action");
-        params.setWsfed_reply("reply");
-        params.setWsfed_context("context");
-        params.setWsfed_policy("policy");
-        params.setWsfed_current_time("time");
-        params.setWsfed_federation_id("fedid");
-        params.setWsfed_encoding("encoding");
-        params.setWsfed_realm("realm");
-        params.setWsfed_freshness("freshness");
-        params.setWsfed_authentication_level("authlevel");
-        params.setWsfed_token_request_type("trt");
-        params.setWsfed_home_realm("homerealm");
-        params.setWsfed_request_url("req");
-        params.setWsfed_result("res");
-        params.setWsfed_result_url("resurl");
+        params.setWsfedAction("action");
+        params.setWsfedReply("reply");
+        params.setWsfedContext("context");
+        params.setWsfedPolicy("policy");
+        params.setWsfedCurrentTime("time");
+        params.setWsfedFederationId("fedid");
+        params.setWsfedEncoding("encoding");
+        params.setWsfedRealm("realm");
+        params.setWsfedFreshness("freshness");
+        params.setWsfedAuthenticationLevel("authlevel");
+        params.setWsfedTokenRequestType("trt");
+        params.setWsfedHomeRealm("homerealm");
+        params.setWsfedRequestUrl("req");
+        params.setWsfedResult("res");
+        params.setWsfedResultUrl("resurl");
 
-        assertEquals("action", params.getWsfed_action());
-        assertEquals("reply", params.getWsfed_reply());
-        assertEquals("context", params.getWsfed_context());
-        assertEquals("policy", params.getWsfed_policy());
-        assertEquals("time", params.getWsfed_current_time());
-        assertEquals("fedid", params.getWsfed_federation_id());
-        assertEquals("encoding", params.getWsfed_encoding());
-        assertEquals("realm", params.getWsfed_realm());
-        assertEquals("freshness", params.getWsfed_freshness());
-        assertEquals("authlevel", params.getWsfed_authentication_level());
-        assertEquals("trt", params.getWsfed_token_request_type());
-        assertEquals("homerealm", params.getWsfed_home_realm());
-        assertEquals("req", params.getWsfed_request_url());
-        assertEquals("res", params.getWsfed_result());
-        assertEquals("resurl", params.getWsfed_result_url());
+        assertEquals("action", params.getWsfedAction());
+        assertEquals("reply", params.getWsfedReply());
+        assertEquals("context", params.getWsfedContext());
+        assertEquals("policy", params.getWsfedPolicy());
+        assertEquals("time", params.getWsfedCurrentTime());
+        assertEquals("fedid", params.getWsfedFederationId());
+        assertEquals("encoding", params.getWsfedEncoding());
+        assertEquals("realm", params.getWsfedRealm());
+        assertEquals("freshness", params.getWsfedFreshness());
+        assertEquals("authlevel", params.getWsfedAuthenticationLevel());
+        assertEquals("trt", params.getWsfedTokenRequestType());
+        assertEquals("homerealm", params.getWsfedHomeRealm());
+        assertEquals("req", params.getWsfedRequestUrl());
+        assertEquals("res", params.getWsfedResult());
+        assertEquals("resurl", params.getWsfedResultUrl());
     }
 
 }

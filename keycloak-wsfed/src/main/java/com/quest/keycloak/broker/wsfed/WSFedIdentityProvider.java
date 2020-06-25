@@ -18,6 +18,8 @@ package com.quest.keycloak.broker.wsfed;
 
 import com.quest.keycloak.common.wsfed.WSFedConstants;
 import com.quest.keycloak.common.wsfed.builders.WSFedResponseBuilder;
+
+import org.apache.commons.lang3.StringUtils;
 import org.jboss.logging.Logger;
 import org.keycloak.broker.provider.AbstractIdentityProvider;
 import org.keycloak.broker.provider.AuthenticationRequest;
@@ -37,9 +39,11 @@ import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.stream.Collectors;
 
 public class WSFedIdentityProvider extends AbstractIdentityProvider<WSFedIdentityProviderConfig> {
@@ -64,9 +68,11 @@ public class WSFedIdentityProvider extends AbstractIdentityProvider<WSFedIdentit
             // not sure how valuable this null-check is in real life, but it breaks in the tests without it.
             if (request.getHttpRequest() != null && request.getHttpRequest().getUri() != null) {
                 MultivaluedMap<String, String> params = request.getHttpRequest().getUri().getQueryParameters();
-                if (params != null && params.containsKey("login_hint")) {
+                if (params != null) {
                     String loginHint = params.getFirst("login_hint");
-                    context += "&username=" + URLEncoder.encode(loginHint, "UTF-8");
+                    if (loginHint!=null) {
+                        context += "&username=" + URLEncoder.encode(loginHint, StandardCharsets.UTF_8.name());
+                    }
                 }
             }
             WSFedResponseBuilder builder = new WSFedResponseBuilder()
@@ -100,22 +106,22 @@ public class WSFedIdentityProvider extends AbstractIdentityProvider<WSFedIdentit
         }
 
         //Generate signout to IDP
-        WSFedResponseBuilder builder = new WSFedResponseBuilder();
-        builder.setMethod(HttpMethod.GET)
-                .setAction(WSFedConstants.WSFED_SIGNOUT_ACTION)
-                .setRealm(getConfig().getWsFedRealm())
-                .setContext(userSession.getId())
-                .setReplyTo(getEndpoint(uriInfo, realm))
-                .setDestination(singleLogoutServiceUrl);
-
-        return builder.buildResponse(null);
+        return new WSFedResponseBuilder()
+            .setMethod(HttpMethod.GET)
+            .setAction(WSFedConstants.WSFED_SIGNOUT_ACTION)
+            .setRealm(getConfig().getWsFedRealm())
+            .setContext(userSession.getId())
+            .setReplyTo(getEndpoint(uriInfo, realm))
+            .setDestination(singleLogoutServiceUrl)
+            .buildResponse(null);
     }
 
     @Override
     public void backchannelLogout(KeycloakSession session, UserSessionModel userSession, UriInfo uriInfo, RealmModel realm) {
         String singleLogoutServiceUrl = getConfig().getSingleLogoutServiceUrl();
-        if (singleLogoutServiceUrl == null || singleLogoutServiceUrl.trim().equals("") || !getConfig().isBackchannelSupported())
+        if (StringUtils.isBlank(singleLogoutServiceUrl) || !getConfig().isBackchannelSupported()) {
             return;
+        }
 
         try {
             int status = SimpleHttp.doGet(singleLogoutServiceUrl, session)
@@ -126,7 +132,7 @@ public class WSFedIdentityProvider extends AbstractIdentityProvider<WSFedIdentit
             if (!success) {
                 logger.warn("Failed ws-fed backchannel broker logout to: " + singleLogoutServiceUrl);
             }
-        } catch (Exception e) {
+        } catch (IOException e) {
             logger.warn("Failed ws-fed backchannel broker logout to: " + singleLogoutServiceUrl, e);
         }
     }

@@ -18,12 +18,14 @@ package com.quest.keycloak.common.wsfed.builders;
 
 import com.quest.keycloak.common.wsfed.WSFedConstants;
 
+import java.util.stream.Stream;
+
 import javax.ws.rs.HttpMethod;
 import javax.ws.rs.core.CacheControl;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
-import static org.keycloak.saml.common.util.StringUtil.isNotNull;
+import org.keycloak.saml.common.util.StringUtil;
 
 /**
  * This class builds the self-executing html form that is actually used as a response for a WS-FED passive requestor.
@@ -190,11 +192,9 @@ public class WSFedResponseBuilder {
             { WSFedConstants.WSFED_REPLY, replyTo },
             { WSFedConstants.WSFED_CONTEXT, context }
         };
-        for(String[] p : params) {
-            if (isNotNull(p[1])) {
-                builder.append("<INPUT TYPE=\"HIDDEN\" NAME=\"").append(p[0]).append("\" VALUE=\"").append(p[1]).append("\" />");
-            }
-        }
+        Stream.of(params)
+            .filter(p -> StringUtil.isNotNull(p[1]))
+            .forEach(p -> builder.append("<INPUT TYPE=\"HIDDEN\" NAME=\"").append(p[0]).append("\" VALUE=\"").append(p[1]).append("\" />"));
 
         return builder.append("<NOSCRIPT>")
             .append("<P>JavaScript is disabled. We strongly recommend to enable it. Click the button below to continue.</P>")
@@ -207,14 +207,13 @@ public class WSFedResponseBuilder {
     /**
      * Goes through every value of the string in parameter to replace "illegal" characters by their escaped value.
      * @param s The string to "escape"
-     * @return the inpt string with "illegal" characters transformed for correctness
+     * @return the input string with "illegal" characters transformed for correctness
      */
     protected static String escapeAttribute(String s) {
         StringBuilder out = new StringBuilder();
-        for (int i = 0; i < s.length(); i++) {
-            char c = s.charAt(i);
+        for (char c : s.toCharArray()) {
             if (c > 127 || c == '"' || c == '<' || c == '>') {
-                out.append("&#" + (int) c + ";");
+                out.append("&#").append((int) c).append(';');
             } else {
                 out.append(c);
             }

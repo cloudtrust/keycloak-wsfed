@@ -36,7 +36,7 @@ import java.util.List;
 public class SAMLRoleListMapper extends AbstractWsfedProtocolMapper implements WSFedSAMLRoleListMapper {
     public static final String PROVIDER_ID = "wsfed-saml-role-list-mapper";
 
-    private static final List<ProviderConfigProperty> configProperties = new ArrayList<ProviderConfigProperty>();
+    private static final List<ProviderConfigProperty> configProperties = new ArrayList<>();
 
     static {
         RoleListMapper mapper = new RoleListMapper();

@@ -1,0 +1,32 @@
+<RequestSecurityTokenResponseCollection>
+	<RequestSecurityTokenResponse Context="complete"
+			xmlns:wsu="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd"
+			xmlns:wss="http://docs.oasis-open.org/wss/oasis-wss-wssecurity-secext-1.1.xsd">
+		<RequestType>http://uri/request-type</RequestType>
+		<TokenType>http://uri/token-type</TokenType>
+		<KeyType>http://uri/key-type</KeyType>
+		<KeySize>256</KeySize>
+		<Lifetime>
+			<Created>2002-05-30T09:00:00</Created>
+			<Expires>2020-09-30T18:45:00</Expires>
+		</Lifetime>
+		<OnBehalfOf>
+			<UsernameToken wsu:Id="user-id"><Value>username</Value></UsernameToken>
+		</OnBehalfOf>
+		<RequestedTokenCancelled/>
+		<Entropy>
+			<BinarySecret Type="TYPE999">ABCDEFGH</BinarySecret>
+		</Entropy>
+		<RequestedProofToken>
+			<BinarySecret Type="TYPE888">STUVWXYZ</BinarySecret>
+		</RequestedProofToken>
+		<UseKey>
+			<X509Certificate/>
+		</UseKey>
+		<RequestedSecurityToken><AnyContent/></RequestedSecurityToken>
+		<RequestedAttachedReference><SecurityTokenReference wss:TokenType="attached-tktype"></SecurityTokenReference></RequestedAttachedReference>
+		<RequestedUnattachedReference><SecurityTokenReference wss:TokenType="unattached-tktype"></SecurityTokenReference></RequestedUnattachedReference>
+		<Status><Code>status.code</Code><Reason>status.reason</Reason></Status>
+		<Renewing Allow="true" OK="true"></Renewing>
+	</RequestSecurityTokenResponse>
+</RequestSecurityTokenResponseCollection>

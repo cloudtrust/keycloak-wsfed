@@ -38,6 +38,9 @@ import org.keycloak.services.managers.AuthenticationManager;
 import org.keycloak.services.messages.Messages;
 import org.keycloak.services.resources.RealmsResource;
 import org.keycloak.sessions.AuthenticationSessionModel;
+import org.keycloak.sessions.CommonClientSessionModel;
+
+import java.io.IOException;
 
 import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
@@ -109,7 +112,7 @@ public class WSFedService extends AuthorizationEndpointBase {
     @GET
     @Path("descriptor")
     @Produces(MediaType.APPLICATION_XML)
-    public String getDescriptor() throws Exception {
+    public String getDescriptor() throws IOException {
         return WSFedIDPDescriptorClientInstallation.getIDPDescriptorForClient(session, realm, session.getContext().getUri().getBaseUri());
     }
 
@@ -135,25 +138,23 @@ public class WSFedService extends AuthorizationEndpointBase {
             return e.getResponse();
         }
 
-        if (params.getWsfed_action() == null) {
-            if (authResult != null && authResult.getSession().getState() == UserSessionModel.State.LOGGING_OUT) {
-                params.setWsfed_action(UserSessionModel.State.LOGGING_OUT.toString());
-            }
+        if (params.getWsfedAction() == null && authResult != null && authResult.getSession().getState() == UserSessionModel.State.LOGGING_OUT) {
+            params.setWsfedAction(UserSessionModel.State.LOGGING_OUT.toString());
         }
 
-        if (params.getWsfed_action() == null) {
+        if (params.getWsfedAction() == null) {
             event.event(EventType.LOGIN);
             event.error(Errors.INVALID_REQUEST);
             return ErrorPage.error(session, null, Response.Status.BAD_REQUEST, Messages.INVALID_REQUEST);
         }
 
-        if (params.getWsfed_realm() == null) {
+        if (params.getWsfedRealm() == null) {
             if (isSignout(params)) {
                 //The spec says that signout doesn't require wtrealm but we generally need a way to identify the client to do SLO properly. So if wtrealm isn't passed get the user session and see if we
                 //have one.
                 if (authResult != null) {
                     UserSessionModel userSession = authResult.getSession();
-                    params.setWsfed_realm(userSession.getNote(WSFedConstants.WSFED_REALM));
+                    params.setWsfedRealm(userSession.getNote(WSFedConstants.WSFED_REALM));
                 }
             } else { //If it's not a signout event than wtrealm is required
                 event.event(EventType.LOGIN);
@@ -172,9 +173,9 @@ public class WSFedService extends AuthorizationEndpointBase {
      * @return true if we are in signout situation
      */
     protected boolean isSignout(WSFedProtocolParameters params) {
-        return params.getWsfed_action().compareTo(WSFedConstants.WSFED_SIGNOUT_ACTION) == 0 ||
-                params.getWsfed_action().compareTo(WSFedConstants.WSFED_SIGNOUT_CLEANUP_ACTION) == 0 ||
-                params.getWsfed_action().compareTo(UserSessionModel.State.LOGGING_OUT.toString()) == 0;
+        return params.getWsfedAction().compareTo(WSFedConstants.WSFED_SIGNOUT_ACTION) == 0 ||
+                params.getWsfedAction().compareTo(WSFedConstants.WSFED_SIGNOUT_CLEANUP_ACTION) == 0 ||
+                params.getWsfedAction().compareTo(UserSessionModel.State.LOGGING_OUT.toString()) == 0;
     }
 
     /**
@@ -201,7 +202,7 @@ public class WSFedService extends AuthorizationEndpointBase {
             event.error(Errors.CLIENT_DISABLED);
             return ErrorPage.error(session, null, Response.Status.BAD_REQUEST, Messages.LOGIN_REQUESTER_NOT_ENABLED);
         }
-        if ((client instanceof ClientModel) && client.isBearerOnly()) {
+        if (client.isBearerOnly()) {
             event.event(EventType.LOGIN);
             event.error(Errors.NOT_ALLOWED);
             return ErrorPage.error(session, null, Response.Status.BAD_REQUEST, Messages.BEARER_ONLY);
@@ -234,24 +235,24 @@ public class WSFedService extends AuthorizationEndpointBase {
         Response response = basicChecks(params);
         if (response != null) return response;
 
-        ClientModel client = realm.getClientByClientId(params.getWsfed_realm()); //at this point in a login this should be the resource's realm
+        ClientModel client = realm.getClientByClientId(params.getWsfedRealm()); //at this point in a login this should be the resource's realm
         response = clientChecks(client, params);
         if (response != null) return response;
 
         event.client(client);
         event.realm(realm);
 
-        if (params.getWsfed_action().compareTo(WSFedConstants.WSFED_SIGNIN_ACTION) == 0) {
+        if (params.getWsfedAction().compareTo(WSFedConstants.WSFED_SIGNIN_ACTION) == 0) {
             return handleLoginRequest(params, client, redirectToAuthentication);
-        } else if (params.getWsfed_action().compareTo(WSFedConstants.WSFED_ATTRIBUTE_ACTION) == 0) {
+        } else if (params.getWsfedAction().compareTo(WSFedConstants.WSFED_ATTRIBUTE_ACTION) == 0) {
             return Response.status(501).build(); //Not Implemented
-        } else if (params.getWsfed_action().compareTo(WSFedConstants.WSFED_SIGNOUT_ACTION) == 0 ||
-                params.getWsfed_action().compareTo(WSFedConstants.WSFED_SIGNOUT_CLEANUP_ACTION) == 0) {
+        } else if (params.getWsfedAction().compareTo(WSFedConstants.WSFED_SIGNOUT_ACTION) == 0 ||
+                params.getWsfedAction().compareTo(WSFedConstants.WSFED_SIGNOUT_CLEANUP_ACTION) == 0) {
             logger.debug("** logout request");
             event.event(EventType.LOGOUT);
 
             return handleLogoutRequest(params, client);
-        } else if (params.getWsfed_action().compareTo(UserSessionModel.State.LOGGING_OUT.toString()) == 0) {
+        } else if (params.getWsfedAction().compareTo(UserSessionModel.State.LOGGING_OUT.toString()) == 0) {
             logger.debug("** logging out request");
             event.event(EventType.LOGOUT);
 
@@ -279,7 +280,7 @@ public class WSFedService extends AuthorizationEndpointBase {
         event.event(EventType.LOGIN);
 
         //Essentially ACS
-        String redirect = RedirectUtils.verifyRedirectUri(session, params.getWsfed_reply(), client);
+        String redirect = RedirectUtils.verifyRedirectUri(session, params.getWsfedReply(), client);
 
         if (redirect == null && !client.getRedirectUris().isEmpty()) {
             //wreply is optional so if it's not specified use the base url
@@ -293,12 +294,12 @@ public class WSFedService extends AuthorizationEndpointBase {
         //WS-FED doesn't carry connection state at this point, but a freshness of 0 indicates a demand to re-prompt
         //for authentication (indicating the request is not new), maybe. TODO check logic
         //However, requestState isn't actually used any more :-/
-        AuthenticationSessionModel authSession = createAuthenticationSession(client, params.getWsfed_freshness());
+        AuthenticationSessionModel authSession = createAuthenticationSession(client, params.getWsfedFreshness());
 
         authSession.setProtocol(WSFedLoginProtocol.LOGIN_PROTOCOL);
         authSession.setRedirectUri(redirect);
         authSession.setAction(AuthenticationSessionModel.Action.AUTHENTICATE.name());
-        authSession.setClientNote(WSFedConstants.WSFED_CONTEXT, params.getWsfed_context());
+        authSession.setClientNote(WSFedConstants.WSFED_CONTEXT, params.getWsfedContext());
         authSession.setClientNote(OIDCLoginProtocol.ISSUER, RealmsResource.realmBaseUrl(session.getContext().getUri()).build(realm.getName()).toString());
 
         LoginProtocol wsfedProtocol = new WSFedLoginProtocol().setEventBuilder(event).setHttpHeaders(headers).setRealm(realm).setSession(session).setUriInfo(session.getContext().getUri());
@@ -307,7 +308,7 @@ public class WSFedService extends AuthorizationEndpointBase {
 
     protected Response handleLogoutRequest(WSFedProtocolParameters params, ClientModel client) {
         //We either need a client or a reply address to make this work
-        if (client == null && params.getWsfed_reply() == null) {
+        if (client == null && params.getWsfedReply() == null) {
             event.event(EventType.LOGOUT);
             event.error(Errors.INVALID_REQUEST);
             return ErrorPage.error(session, null, Response.Status.BAD_REQUEST, Messages.INVALID_REQUEST);
@@ -315,22 +316,22 @@ public class WSFedService extends AuthorizationEndpointBase {
 
         String logoutUrl;
         if (client != null) {
-            logoutUrl = RedirectUtils.verifyRedirectUri(session, params.getWsfed_reply(), client);
+            logoutUrl = RedirectUtils.verifyRedirectUri(session, params.getWsfedReply(), client);
         } else {
-            logoutUrl = RedirectUtils.verifyRealmRedirectUri(session, params.getWsfed_reply());
+            logoutUrl = RedirectUtils.verifyRealmRedirectUri(session, params.getWsfedReply());
         }
 
         AuthenticationManager.AuthResult authResult = authenticateIdentityCookie();
         if (authResult != null) {
             UserSessionModel userSession = authResult.getSession();
             userSession.setNote(WSFedLoginProtocol.WSFED_LOGOUT_BINDING_URI, logoutUrl);
-            userSession.setNote(WSFedLoginProtocol.WSFED_CONTEXT, params.getWsfed_context());
+            userSession.setNote(WSFedLoginProtocol.WSFED_CONTEXT, params.getWsfedContext());
             userSession.setNote(AuthenticationManager.KEYCLOAK_LOGOUT_PROTOCOL, WSFedLoginProtocol.LOGIN_PROTOCOL);
 
             // remove client from logout requests
             AuthenticatedClientSessionModel clientSession = userSession.getAuthenticatedClientSessions().get(client.getId());
             if (clientSession.getClient().getId().equals(client.getId())) {
-                clientSession.setAction(AuthenticationSessionModel.Action.LOGGED_OUT.name());
+                clientSession.setAction(CommonClientSessionModel.Action.LOGGED_OUT.name());
             }
 
             event.user(userSession.getUser());
@@ -345,7 +346,7 @@ public class WSFedService extends AuthorizationEndpointBase {
         //This gets called if KC has no session for the user. Essentially they are already logged out?
         WSFedResponseBuilder builder = new WSFedResponseBuilder();
         builder.setMethod(HttpMethod.GET)
-                .setContext(params.getWsfed_context())
+                .setContext(params.getWsfedContext())
                 .setDestination(logoutUrl);
 
         return builder.buildResponse(null);

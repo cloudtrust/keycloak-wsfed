@@ -18,6 +18,8 @@ package com.quest.keycloak.protocol.wsfed.builders;
 
 import com.quest.keycloak.common.wsfed.WSFedConstants;
 
+import java.util.function.Consumer;
+
 import javax.ws.rs.core.MultivaluedMap;
 
 /**
@@ -33,23 +35,22 @@ import javax.ws.rs.core.MultivaluedMap;
  * are implemented
  */
 public class WSFedProtocolParameters {
-    protected String wsfed_action;
-    protected String wsfed_reply;
-    protected String wsfed_resource;
-    protected String wsfed_context;
-    protected String wsfed_policy;
-    protected String wsfed_current_time;
-    protected String wsfed_federation_id;
-    protected String wsfed_encoding;
-    protected String wsfed_realm;
-    protected String wsfed_freshness;
-    protected String wsfed_authentication_level;
-    protected String wsfed_token_request_type;
-    protected String wsfed_home_realm;
-    protected String wsfed_request_url;
-    protected String wsfed_result;
-    protected String wsfed_result_url;
-
+    protected String wsfedAction;
+    protected String wsfedReply;
+    protected String wsfedResource;
+    protected String wsfedContext;
+    protected String wsfedPolicy;
+    protected String wsfedCurrentTime;
+    protected String wsfedFederationId;
+    protected String wsfedEncoding;
+    protected String wsfedRealm;
+    protected String wsfedFreshness;
+    protected String wsfedAuthenticationLevel;
+    protected String wsfedTokenRequestType;
+    protected String wsfedHomeRealm;
+    protected String wsfedRequestUrl;
+    protected String wsfedResult;
+    protected String wsfedResultUrl;
 
     /**
      * Sets the WS-Fed parameters from a Multivalued map. Such a map is typically returned by an http request form
@@ -62,198 +63,157 @@ public class WSFedProtocolParameters {
     public static WSFedProtocolParameters fromParameters(MultivaluedMap<String, String> requestParams) {
         WSFedProtocolParameters params = new WSFedProtocolParameters();
 
-        if(requestParams.containsKey(WSFedConstants.WSFED_ACTION)) {
-            params.setWsfed_action(requestParams.getFirst(WSFedConstants.WSFED_ACTION));
-        }
-
-        if(requestParams.containsKey(WSFedConstants.WSFED_REPLY)) {
-            params.setWsfed_reply(requestParams.getFirst(WSFedConstants.WSFED_REPLY));
-        }
-
-        if(requestParams.containsKey(WSFedConstants.WSFED_RESOURCE)) {
-            params.setWsfed_resource(requestParams.getFirst(WSFedConstants.WSFED_RESOURCE));
-        }
-
-        if(requestParams.containsKey(WSFedConstants.WSFED_CONTEXT)) {
-            params.setWsfed_context(requestParams.getFirst(WSFedConstants.WSFED_CONTEXT));
-        }
-
-        if(requestParams.containsKey(WSFedConstants.WSFED_POLICY)) {
-            params.setWsfed_policy(requestParams.getFirst(WSFedConstants.WSFED_POLICY));
-        }
-
-        if(requestParams.containsKey(WSFedConstants.WSFED_CURRENT_TIME)) {
-            params.setWsfed_current_time(requestParams.getFirst(WSFedConstants.WSFED_CURRENT_TIME));
-        }
-
-        if(requestParams.containsKey(WSFedConstants.WSFED_FEDERATION_ID)) {
-            params.setWsfed_federation_id(requestParams.getFirst(WSFedConstants.WSFED_FEDERATION_ID));
-        }
-
-        if(requestParams.containsKey(WSFedConstants.WSFED_ENCODING)) {
-            params.setWsfed_encoding(requestParams.getFirst(WSFedConstants.WSFED_ENCODING));
-        }
-
-        if(requestParams.containsKey(WSFedConstants.WSFED_REALM)) {
-            params.setWsfed_realm(requestParams.getFirst(WSFedConstants.WSFED_REALM));
-        }
-
-        if(requestParams.containsKey(WSFedConstants.WSFED_FRESHNESS)) {
-            params.setWsfed_freshness(requestParams.getFirst(WSFedConstants.WSFED_FRESHNESS));
-        }
-
-        if(requestParams.containsKey(WSFedConstants.WSFED_AUTHENTICATION_LEVEL)) {
-            params.setWsfed_authentication_level(requestParams.getFirst(WSFedConstants.WSFED_AUTHENTICATION_LEVEL));
-        }
-
-        if(requestParams.containsKey(WSFedConstants.WSFED_TOKEN_REQUEST_TYPE)) {
-            params.setWsfed_token_request_type(requestParams.getFirst(WSFedConstants.WSFED_TOKEN_REQUEST_TYPE));
-        }
-
-        if(requestParams.containsKey(WSFedConstants.WSFED_HOME_REALM)) {
-            params.setWsfed_home_realm(requestParams.getFirst(WSFedConstants.WSFED_HOME_REALM));
-        }
-
-        if(requestParams.containsKey(WSFedConstants.WSFED_REQUEST_URL)) {
-            params.setWsfed_request_url(requestParams.getFirst(WSFedConstants.WSFED_REQUEST_URL));
-        }
-
-        if(requestParams.containsKey(WSFedConstants.WSFED_RESULT)) {
-            params.setWsfed_result(requestParams.getFirst(WSFedConstants.WSFED_RESULT));
-        }
-
-        if(requestParams.containsKey(WSFedConstants.WSFED_RESULT_URL)) {
-            params.setWsfed_result_url(requestParams.getFirst(WSFedConstants.WSFED_RESULT_URL));
-        }
+        whenContainsKey(requestParams, WSFedConstants.WSFED_ACTION, params::setWsfedAction);
+        whenContainsKey(requestParams, WSFedConstants.WSFED_REPLY, params::setWsfedReply);
+        whenContainsKey(requestParams, WSFedConstants.WSFED_RESOURCE, params::setWsfedResource);
+        whenContainsKey(requestParams, WSFedConstants.WSFED_CONTEXT, params::setWsfedContext);
+        whenContainsKey(requestParams, WSFedConstants.WSFED_POLICY, params::setWsfedPolicy);
+        whenContainsKey(requestParams, WSFedConstants.WSFED_CURRENT_TIME, params::setWsfedCurrentTime);
+        whenContainsKey(requestParams, WSFedConstants.WSFED_FEDERATION_ID, params::setWsfedFederationId);
+        whenContainsKey(requestParams, WSFedConstants.WSFED_ENCODING, params::setWsfedEncoding);
+        whenContainsKey(requestParams, WSFedConstants.WSFED_REALM, params::setWsfedRealm);
+        whenContainsKey(requestParams, WSFedConstants.WSFED_FRESHNESS, params::setWsfedFreshness);
+        whenContainsKey(requestParams, WSFedConstants.WSFED_AUTHENTICATION_LEVEL, params::setWsfedAuthenticationLevel);
+        whenContainsKey(requestParams, WSFedConstants.WSFED_TOKEN_REQUEST_TYPE, params::setWsfedTokenRequestType);
+        whenContainsKey(requestParams, WSFedConstants.WSFED_HOME_REALM, params::setWsfedHomeRealm);
+        whenContainsKey(requestParams, WSFedConstants.WSFED_REQUEST_URL, params::setWsfedRequestUrl);
+        whenContainsKey(requestParams, WSFedConstants.WSFED_RESULT, params::setWsfedResult);
+        whenContainsKey(requestParams, WSFedConstants.WSFED_RESULT_URL, params::setWsfedResultUrl);
 
         return params;
     }
 
-    public String getWsfed_action() {
-        return wsfed_action;
+    private static void whenContainsKey(MultivaluedMap<String, String> params, String key, Consumer<String> setter) {
+        if (params.containsKey(key)) {
+            setter.accept(params.getFirst(key));
+        }
     }
 
-    public void setWsfed_action(String wsfed_action) {
-        this.wsfed_action = wsfed_action;
+    public String getWsfedAction() {
+        return wsfedAction;
     }
 
-    public String getWsfed_reply() {
-        return wsfed_reply;
+    public void setWsfedAction(String wsfedAction) {
+        this.wsfedAction = wsfedAction;
     }
 
-    public void setWsfed_reply(String wsfed_reply) {
-        this.wsfed_reply = wsfed_reply;
+    public String getWsfedReply() {
+        return wsfedReply;
     }
 
-    public String getWsfed_resource() {
-        return  wsfed_resource;
+    public void setWsfedReply(String wsfedReply) {
+        this.wsfedReply = wsfedReply;
     }
 
-    public void setWsfed_resource(String wsfed_resource) {
-        this.wsfed_resource = wsfed_resource;
+    public String getWsfedResource() {
+        return  wsfedResource;
     }
 
-    public String getWsfed_context() {
-        return wsfed_context;
+    public void setWsfedResource(String wsfedResource) {
+        this.wsfedResource = wsfedResource;
     }
 
-    public void setWsfed_context(String wsfed_context) {
-        this.wsfed_context = wsfed_context;
+    public String getWsfedContext() {
+        return wsfedContext;
     }
 
-    public String getWsfed_policy() {
-        return wsfed_policy;
+    public void setWsfedContext(String wsfedContext) {
+        this.wsfedContext = wsfedContext;
     }
 
-    public void setWsfed_policy(String wsfed_policy) {
-        this.wsfed_policy = wsfed_policy;
+    public String getWsfedPolicy() {
+        return wsfedPolicy;
     }
 
-    public String getWsfed_current_time() {
-        return wsfed_current_time;
+    public void setWsfedPolicy(String wsfedPolicy) {
+        this.wsfedPolicy = wsfedPolicy;
     }
 
-    public void setWsfed_current_time(String wsfed_current_time) {
-        this.wsfed_current_time = wsfed_current_time;
+    public String getWsfedCurrentTime() {
+        return wsfedCurrentTime;
     }
 
-    public String getWsfed_federation_id() {
-        return wsfed_federation_id;
+    public void setWsfedCurrentTime(String wsfedCurrentTime) {
+        this.wsfedCurrentTime = wsfedCurrentTime;
     }
 
-    public void setWsfed_federation_id(String wsfed_federation_id) {
-        this.wsfed_federation_id = wsfed_federation_id;
+    public String getWsfedFederationId() {
+        return wsfedFederationId;
     }
 
-    public String getWsfed_encoding() {
-        return wsfed_encoding;
+    public void setWsfedFederationId(String wsfedFederationId) {
+        this.wsfedFederationId = wsfedFederationId;
     }
 
-    public void setWsfed_encoding(String wsfed_encoding) {
-        this.wsfed_encoding = wsfed_encoding;
+    public String getWsfedEncoding() {
+        return wsfedEncoding;
     }
 
-    public String getWsfed_realm() {
-        return wsfed_realm;
+    public void setWsfedEncoding(String wsfedEncoding) {
+        this.wsfedEncoding = wsfedEncoding;
     }
 
-    public void setWsfed_realm(String wsfed_realm) {
-        this.wsfed_realm = wsfed_realm;
+    public String getWsfedRealm() {
+        return wsfedRealm;
     }
 
-    public String getWsfed_freshness() {
-        return wsfed_freshness;
+    public void setWsfedRealm(String wsfedRealm) {
+        this.wsfedRealm = wsfedRealm;
     }
 
-    public void setWsfed_freshness(String wsfed_freshness) {
-        this.wsfed_freshness = wsfed_freshness;
+    public String getWsfedFreshness() {
+        return wsfedFreshness;
     }
 
-    public String getWsfed_authentication_level() {
-        return wsfed_authentication_level;
+    public void setWsfedFreshness(String wsfedFreshness) {
+        this.wsfedFreshness = wsfedFreshness;
     }
 
-    public void setWsfed_authentication_level(String wsfed_authentication_level) {
-        this.wsfed_authentication_level = wsfed_authentication_level;
+    public String getWsfedAuthenticationLevel() {
+        return wsfedAuthenticationLevel;
     }
 
-    public String getWsfed_token_request_type() {
-        return wsfed_token_request_type;
+    public void setWsfedAuthenticationLevel(String wsfedAuthenticationLevel) {
+        this.wsfedAuthenticationLevel = wsfedAuthenticationLevel;
     }
 
-    public void setWsfed_token_request_type(String wsfed_token_request_type) {
-        this.wsfed_token_request_type = wsfed_token_request_type;
+    public String getWsfedTokenRequestType() {
+        return wsfedTokenRequestType;
     }
 
-    public String getWsfed_home_realm() {
-        return wsfed_home_realm;
+    public void setWsfedTokenRequestType(String wsfedTokenRequestType) {
+        this.wsfedTokenRequestType = wsfedTokenRequestType;
     }
 
-    public void setWsfed_home_realm(String wsfed_home_realm) {
-        this.wsfed_home_realm = wsfed_home_realm;
+    public String getWsfedHomeRealm() {
+        return wsfedHomeRealm;
     }
 
-    public String getWsfed_request_url() {
-        return wsfed_request_url;
+    public void setWsfedHomeRealm(String wsfedHomeRealm) {
+        this.wsfedHomeRealm = wsfedHomeRealm;
     }
 
-    public void setWsfed_request_url(String wsfed_request_url) {
-        this.wsfed_request_url = wsfed_request_url;
+    public String getWsfedRequestUrl() {
+        return wsfedRequestUrl;
     }
 
-    public String getWsfed_result() {
-        return wsfed_result;
+    public void setWsfedRequestUrl(String wsfedRequestUrl) {
+        this.wsfedRequestUrl = wsfedRequestUrl;
     }
 
-    public void setWsfed_result(String wsfed_result) {
-        this.wsfed_result = wsfed_result;
+    public String getWsfedResult() {
+        return wsfedResult;
     }
 
-    public String getWsfed_result_url() {
-        return wsfed_result_url;
+    public void setWsfedResult(String wsfedResult) {
+        this.wsfedResult = wsfedResult;
     }
 
-    public void setWsfed_result_url(String wsfed_result_url) {
-        this.wsfed_result_url = wsfed_result_url;
+    public String getWsfedResultUrl() {
+        return wsfedResultUrl;
+    }
+
+    public void setWsfedResultUrl(String wsfedResultUrl) {
+        this.wsfedResultUrl = wsfedResultUrl;
     }
 }

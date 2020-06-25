@@ -30,7 +30,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class OIDCUserPropertyMapper extends AbstractWsfedProtocolMapper implements WSFedOIDCAccessTokenMapper {
-    private static final List<ProviderConfigProperty> configProperties = new ArrayList<ProviderConfigProperty>();
+    private static final List<ProviderConfigProperty> configProperties = new ArrayList<>();
 
     static {
         UserPropertyMapper mapper = new UserPropertyMapper();

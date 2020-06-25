@@ -8,7 +8,7 @@ import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.LaxRedirectStrategy;
 import org.jboss.logging.Logger;
 
-import io.cloudtrust.keycloak.exceptions.CtRuntimeException;
+import io.cloudtrust.exception.CloudtrustRuntimeException;
 
 import java.net.URI;
 import java.util.Arrays;
@@ -114,7 +114,7 @@ public class WsFedClient {
 
             return resultTransformer.extract(currentResponse);
         } catch (Exception ex) {
-            throw new CtRuntimeException(ex);
+            throw new CloudtrustRuntimeException(ex);
         }
     }
 

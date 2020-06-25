@@ -17,7 +17,7 @@
 package com.quest.keycloak.protocol.wsfed.mappers;
 
 import com.quest.keycloak.protocol.wsfed.WSFedLoginProtocol;
-import io.cloudtrust.keycloak.exceptions.CtRuntimeException;
+import io.cloudtrust.exception.CloudtrustRuntimeException;
 
 import org.keycloak.Config;
 import org.keycloak.models.KeycloakSession;
@@ -27,7 +27,6 @@ import org.keycloak.protocol.saml.mappers.AttributeStatementHelper;
 import org.keycloak.provider.ProviderConfigProperty;
 
 import java.util.Iterator;
-import java.util.List;
 
 public abstract class AbstractWsfedProtocolMapper implements ProtocolMapper {
     public static final String TOKEN_MAPPER_CATEGORY = "OIDC Token mapper";
@@ -42,21 +41,22 @@ public abstract class AbstractWsfedProtocolMapper implements ProtocolMapper {
 
     @Override
     public void close() {
-
+        // Nothing to close
     }
 
     @Override
     public final ProtocolMapper create(KeycloakSession session) {
-        throw new CtRuntimeException("UNSUPPORTED METHOD");
+        throw new CloudtrustRuntimeException("UNSUPPORTED METHOD");
     }
 
     @Override
     public void init(Config.Scope config) {
+        // Nothing to do
     }
 
     @Override
     public void postInit(KeycloakSessionFactory factory) {
-
+        // Nothing to do
     }
 
     /**
@@ -70,14 +70,14 @@ public abstract class AbstractWsfedProtocolMapper implements ProtocolMapper {
      *
      * @param properties The list of ProviderConfigProperty objects already configured by a Keycloak provided Mapper
      */
-    static void addNamespaceToFriendlyProperty(List<ProviderConfigProperty> properties) {
+    static void addNamespaceToFriendlyProperty(Iterable<ProviderConfigProperty> properties) {
         ProviderConfigProperty property = null;
         Iterator<ProviderConfigProperty> iter = properties.iterator();
         // Iterate until we find the property with the FriendlyName, could break if Keycloak Mappers stop using
         // AttributeStatementHelper.FriendlyName
         while (iter.hasNext()) {
             property = iter.next();
-            if (property.getName().equals(AttributeStatementHelper.FRIENDLY_NAME)) {
+            if (AttributeStatementHelper.FRIENDLY_NAME.equals(property.getName())) {
                 property.setLabel(AttributeStatementHelper.FRIENDLY_NAME_LABEL + "/ Namespace");
                 property.setHelpText(FRIENDLY_NAMESPACE_HELP_TEXT);
                 break;

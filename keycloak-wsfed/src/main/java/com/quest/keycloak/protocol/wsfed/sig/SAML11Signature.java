@@ -124,8 +124,8 @@ public class SAML11Signature implements SAMLAbstractSignature {
      * @throws MarshalException
      * @throws GeneralSecurityException
      */
-    public Document sign(Document doc, String keyName, String referenceID, KeyPair keyPair, String canonicalizationMethodType) throws ParserConfigurationException,
-            GeneralSecurityException, MarshalException, XMLSignatureException {
+    private Document sign(Document doc, String keyName, String referenceID, KeyPair keyPair, String canonicalizationMethodType) throws GeneralSecurityException,
+            MarshalException, XMLSignatureException {
         String referenceURI = "#" + referenceID;
 
         configureIdAttribute(doc);

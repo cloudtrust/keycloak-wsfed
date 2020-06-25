@@ -26,7 +26,9 @@ import org.keycloak.events.EventBuilder;
 import org.keycloak.events.EventType;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.saml.common.constants.JBossSAMLURIConstants;
+import org.keycloak.saml.common.exceptions.ConfigurationException;
 import org.keycloak.saml.common.exceptions.ParsingException;
+import org.keycloak.saml.common.exceptions.ProcessingException;
 import org.keycloak.saml.common.util.DocumentUtil;
 import org.keycloak.saml.processing.core.parsers.saml.SAMLParser;
 import org.keycloak.saml.processing.core.saml.v2.util.AssertionUtil;
@@ -37,13 +39,20 @@ import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 
 import javax.ws.rs.core.Response;
+import javax.xml.datatype.DatatypeConfigurationException;
 import javax.xml.datatype.DatatypeFactory;
 import javax.xml.datatype.XMLGregorianCalendar;
+import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.xpath.XPathExpressionException;
+
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
 import java.security.PublicKey;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * The purpose of this class is to handle a SAML 1.1 token sent back from an external IdP. It has methods both to verify
@@ -73,7 +82,6 @@ public class SAML11RequestedToken implements RequestedToken {
         this.samlAssertion = getAssertionType(token);
     }
 
-
     public static boolean isSignatureValid(Element assertionElement, PublicKey publicKey) {
         try {
             Document doc = DocumentUtil.createDocument();
@@ -81,7 +89,7 @@ public class SAML11RequestedToken implements RequestedToken {
             doc.appendChild(n);
 
             return new SAML11Signature().validate(doc, publicKey);
-        } catch (Exception e) {
+        } catch (ConfigurationException | ProcessingException e) {
             logger.error("Cannot validate signature of assertion", e);
         }
         return false;
@@ -114,7 +122,7 @@ public class SAML11RequestedToken implements RequestedToken {
                 return ErrorPage.error(session, null, Response.Status.BAD_REQUEST, Messages.INVALID_FEDERATED_IDENTITY_ACTION);
             }
 
-        } catch (Exception e) {
+        } catch (GeneralSecurityException | DatatypeConfigurationException | XPathExpressionException | ParserConfigurationException e) {
             logger.error("Unable to validate signature", e);
             event.event(EventType.IDENTITY_PROVIDER_RESPONSE);
             event.error(Errors.INVALID_SAML_RESPONSE);
@@ -207,30 +215,36 @@ public class SAML11RequestedToken implements RequestedToken {
         if (samlAssertion.getStatements().isEmpty()) {
             return null;
         }
-        for (SAML11StatementAbstractType st : samlAssertion.getStatements()) {
-            if (st instanceof SAML11SubjectStatementType) {
-                SAML11SubjectStatementType subjectStatement = (SAML11SubjectStatementType) st;
-                SAML11SubjectType subject = subjectStatement.getSubject();
-                //first attempts to get subject
-                if (subject != null && subject.getChoice() != null) {
-                    SAML11SubjectType.SAML11SubjectTypeChoice choice = subject.getChoice();
-                    if (choice.getNameID() != null) {
-                        String nameId = choice.getNameID().getValue();
-                        if (nameId != null && !nameId.isEmpty()) {
-                            return nameId;
-                        }
-                    }
+        return samlAssertion.getStatements().stream()
+            .filter(st -> st instanceof SAML11SubjectStatementType)
+            .map(this::getSubjectOrNameFromSubjectStatement)
+            .filter(Objects::nonNull)
+            .findFirst()
+            .orElse(null);
+    }
+
+    private String getSubjectOrNameFromSubjectStatement(SAML11StatementAbstractType statement) {
+        SAML11SubjectStatementType st = (SAML11SubjectStatementType) statement;
+        SAML11SubjectType subject = st.getSubject();
+        //first attempts to get subject
+        if (subject != null && subject.getChoice() != null) {
+            SAML11SubjectType.SAML11SubjectTypeChoice choice = subject.getChoice();
+            if (choice.getNameID() != null) {
+                String nameId = choice.getNameID().getValue();
+                if (nameId != null && !nameId.isEmpty()) {
+                    return nameId;
                 }
-                // The "nameidentifier" is a unique user id.
-                if (subjectStatement instanceof SAML11AttributeStatementType) {
-                    SAML11AttributeStatementType attributeStatement = (SAML11AttributeStatementType) subjectStatement;
-                    for (SAML11AttributeType attribute : attributeStatement.get()) {
-                        if (!attribute.get().isEmpty() && ("nameidentifier".equalsIgnoreCase(attribute.getAttributeName())
-                                || JBossSAMLURIConstants.CLAIMS_NAME_IDENTIFIER.get().equalsIgnoreCase(attribute.getAttributeName()))) {
-                            return attribute.get().get(0).toString();
-                        }
-                    }
-                }
+            }
+        }
+        // The "nameidentifier" is a unique user id.
+        if (!(st instanceof SAML11AttributeStatementType)) {
+            return null;
+        }
+        SAML11AttributeStatementType attributeStatement = (SAML11AttributeStatementType) st;
+        for (SAML11AttributeType attribute : attributeStatement.get()) {
+            if (!attribute.get().isEmpty() && ("nameidentifier".equalsIgnoreCase(attribute.getAttributeName())
+                    || JBossSAMLURIConstants.CLAIMS_NAME_IDENTIFIER.get().equalsIgnoreCase(attribute.getAttributeName()))) {
+                return attribute.get().get(0).toString();
             }
         }
         return null;
@@ -278,14 +292,11 @@ public class SAML11RequestedToken implements RequestedToken {
     }
 
     private List<URI> getAudienceRestrictions() {
-        SAML11ConditionsType conditions = samlAssertion.getConditions();
-        for (SAML11ConditionAbstractType condition : conditions.get()) {
-            if (condition instanceof SAML11AudienceRestrictionCondition) {
-                return ((SAML11AudienceRestrictionCondition) condition).get();
-            }
-        }
-
-        return null;
+        return samlAssertion.getConditions().get().stream()
+            .filter(c -> c instanceof SAML11AudienceRestrictionCondition)
+            .map(c -> ((SAML11AudienceRestrictionCondition)c).get())
+            .findFirst()
+            .orElse(null);
     }
 
     /**
@@ -300,7 +311,7 @@ public class SAML11RequestedToken implements RequestedToken {
         SAML11AssertionType assertionType = null;
         String assertionXml = DocumentUtil.asString(((Element) token).getOwnerDocument());
 
-        try (ByteArrayInputStream bis = new ByteArrayInputStream(assertionXml.getBytes())) {
+        try (ByteArrayInputStream bis = new ByteArrayInputStream(assertionXml.getBytes(StandardCharsets.UTF_8))) {
             SAMLParser parser = SAMLParser.getInstance();
             Object assertion = parser.parse(bis);
 

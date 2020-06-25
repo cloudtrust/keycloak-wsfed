@@ -38,7 +38,7 @@ import java.util.List;
 
 public class SAMLUserAttributeStatementMapper extends AbstractWsfedProtocolMapper implements WSFedSAMLAttributeStatementMapper {
 
-    private static final List<ProviderConfigProperty> configProperties = new ArrayList<ProviderConfigProperty>();
+    private static final List<ProviderConfigProperty> configProperties = new ArrayList<>();
     public static final String PROVIDER_ID = "wsfed-saml-user-attribute-mapper";
 
     static {

@@ -20,7 +20,7 @@ import com.quest.keycloak.common.wsfed.MockHelper;
 import com.quest.keycloak.common.wsfed.TestHelpers.*;
 import com.quest.keycloak.common.wsfed.WSFedConstants;
 
-import io.cloudtrust.keycloak.exceptions.CtRuntimeException;
+import io.cloudtrust.exception.CloudtrustRuntimeException;
 
 import org.apache.http.HttpStatus;
 import org.junit.Before;
@@ -84,7 +84,7 @@ public class WSFedIdentityProviderTest {
 
     @Test
     public void testPerformLoginException() throws Exception {
-        doThrow(new CtRuntimeException("Message")).when(config).getWsFedRealm();
+        doThrow(new CloudtrustRuntimeException("Message")).when(config).getWsFedRealm();
 
         expectedException.expect(IdentityBrokerException.class);
         expectedException.expectMessage(equalTo("Could not create authentication request."));

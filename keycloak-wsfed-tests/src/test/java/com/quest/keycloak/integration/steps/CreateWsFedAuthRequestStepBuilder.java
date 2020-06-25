@@ -19,11 +19,8 @@ public class CreateWsFedAuthRequestStepBuilder extends AbstractStepBuilder {
     private final String clientId;
     private final String context;
 
-    private WsFedClientBuilder clientBuilder;
-
     public CreateWsFedAuthRequestStepBuilder(WsFedClientBuilder clientBuilder, URI authServerWsFedUrl, String consumerUrl, String clientId, String context) {
         super(clientBuilder);
-        this.clientBuilder = clientBuilder;
         this.authServerWsFedUrl = authServerWsFedUrl;
         this.consumerUrl = consumerUrl;
         this.clientId = clientId;
