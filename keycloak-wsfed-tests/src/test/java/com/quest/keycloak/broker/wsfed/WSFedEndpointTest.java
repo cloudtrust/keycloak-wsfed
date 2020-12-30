@@ -470,7 +470,7 @@ public class WSFedEndpointTest {
 
         RequestSecurityTokenResponse rstr = builder.build();
 
-        Thread.sleep(2000);
+        this.wait(2000);
         assertTrue(endpoint.hasExpired(rstr));
     }
 

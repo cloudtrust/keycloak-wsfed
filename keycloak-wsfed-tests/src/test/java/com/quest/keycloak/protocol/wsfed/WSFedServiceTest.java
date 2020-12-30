@@ -67,7 +67,13 @@ import java.util.HashSet;
 import java.util.UUID;
 
 import static com.quest.keycloak.common.wsfed.TestHelpers.*;
-import static org.junit.Assert.*;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.Mockito.*;
 
 public class WSFedServiceTest {
@@ -479,7 +485,7 @@ public class WSFedServiceTest {
 
         doReturn(new HashSet<>(Arrays.asList(params.getWsfedReply()))).when(mockHelper.getClient()).getRedirectUris();
         doReturn(null).when(service).authenticateIdentityCookie();
-        doReturn(Arrays.asList(mockHelper.getClient())).when(mockHelper.getRealm()).getClients();
+        doReturn(Arrays.asList(mockHelper.getClient()).stream()).when(mockHelper.getRealm()).getClientsStream();
 
         Response response = service.handleLogoutRequest(params, null);
         Document doc = responseToDocument(response);

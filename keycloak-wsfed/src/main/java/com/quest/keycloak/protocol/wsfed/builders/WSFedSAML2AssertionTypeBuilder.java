@@ -32,7 +32,6 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 
 public class WSFedSAML2AssertionTypeBuilder extends WsFedSAMLAssertionTypeAbstractBuilder<WSFedSAML2AssertionTypeBuilder> {
@@ -57,20 +56,18 @@ public class WSFedSAML2AssertionTypeBuilder extends WsFedSAMLAssertionTypeAbstra
         AssertionType assertion = builder.buildModel();
 
         List<SamlProtocol.ProtocolMapperProcessor<WSFedSAMLAttributeStatementMapper>> attributeStatementMappers = new LinkedList<>();
-        SamlProtocol.ProtocolMapperProcessor<WSFedSAMLRoleListMapper> roleListMapper = null;
+        List<SamlProtocol.ProtocolMapperProcessor<WSFedSAMLRoleListMapper>> roleListMappers = new LinkedList<>();
 
-        Set<ProtocolMapperModel> mappings = clientSession.getClient().getProtocolMappers();
-        for (ProtocolMapperModel mapping : mappings) {
-
+        clientSession.getClient().getProtocolMappersStream().forEach(mapping -> {
             ProtocolMapper mapper = (ProtocolMapper)session.getKeycloakSessionFactory().getProviderFactory(ProtocolMapper.class, mapping.getProtocolMapper());
-            if (mapper == null) continue;
             if (mapper instanceof WSFedSAMLAttributeStatementMapper) {
                 attributeStatementMappers.add(new SamlProtocol.ProtocolMapperProcessor<>((WSFedSAMLAttributeStatementMapper)mapper, mapping));
             }
             if (mapper instanceof WSFedSAMLRoleListMapper) {
-                roleListMapper = new SamlProtocol.ProtocolMapperProcessor<>((WSFedSAMLRoleListMapper)mapper, mapping);
+                roleListMappers.add(new SamlProtocol.ProtocolMapperProcessor<>((WSFedSAMLRoleListMapper)mapper, mapping));
             }
-        }
+        });
+        SamlProtocol.ProtocolMapperProcessor<WSFedSAMLRoleListMapper> roleListMapper = roleListMappers.isEmpty() ? null : roleListMappers.get(0);
 
         transformAttributeStatement(attributeStatementMappers, assertion, session, userSession, clientSession);
         populateRoles(roleListMapper, assertion, session, userSession, clientSession);

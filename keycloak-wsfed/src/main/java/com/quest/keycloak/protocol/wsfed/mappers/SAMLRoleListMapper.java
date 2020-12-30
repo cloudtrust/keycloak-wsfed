@@ -82,7 +82,7 @@ public class SAMLRoleListMapper extends AbstractWsfedProtocolMapper implements W
     @Override
     public void mapRoles(AttributeStatementType roleAttributeStatement, ProtocolMapperModel mappingModel, KeycloakSession session, UserSessionModel userSession, AuthenticatedClientSessionModel clientSession) {
         RoleListMapper samlMapper = new RoleListMapper();
-        samlMapper.mapRoles(roleAttributeStatement, mappingModel, session, userSession, DefaultClientSessionContext.fromClientSessionScopeParameter(clientSession));
+        samlMapper.mapRoles(roleAttributeStatement, mappingModel, session, userSession, DefaultClientSessionContext.fromClientSessionScopeParameter(clientSession, session));
     }
 
     /**

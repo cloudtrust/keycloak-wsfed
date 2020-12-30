@@ -49,8 +49,17 @@ import org.picketlink.identity.federation.core.wstrust.wrappers.Lifetime;
 import org.picketlink.identity.federation.core.wstrust.wrappers.RequestSecurityTokenResponse;
 import org.picketlink.identity.federation.core.wstrust.wrappers.RequestSecurityTokenResponseCollection;
 
-import javax.ws.rs.*;
-import javax.ws.rs.core.*;
+import javax.ws.rs.Consumes;
+import javax.ws.rs.FormParam;
+import javax.ws.rs.GET;
+import javax.ws.rs.HttpMethod;
+import javax.ws.rs.QueryParam;
+import javax.ws.rs.POST;
+import javax.ws.rs.core.Context;
+import javax.ws.rs.core.HttpHeaders;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+import javax.ws.rs.core.UriInfo;
 import javax.xml.datatype.DatatypeConfigurationException;
 import javax.xml.datatype.DatatypeFactory;
 import javax.xml.datatype.XMLGregorianCalendar;
@@ -172,17 +181,15 @@ public class WSFedEndpoint {
             return ErrorPage.error(session, null, Response.Status.BAD_REQUEST, Messages.IDENTITY_PROVIDER_UNEXPECTED_ERROR);
         }
 
-        List<UserSessionModel> userSessions = session.sessions().getUserSessionByBrokerUserId(realm, result.getSession().getBrokerUserId());
-        for (UserSessionModel userSession : userSessions) {
-            if (userSession.getState() == UserSessionModel.State.LOGGING_OUT || userSession.getState() == UserSessionModel.State.LOGGED_OUT) {
-                continue;
-            }
-            try {
-                AuthenticationManager.backchannelLogout(session, realm, userSession, uriInfo, clientConnection, headers, false);
-            } catch (Exception e) {
-                logger.warn("failed to do backchannel logout for userSession", e);
-            }
-        }
+        session.sessions().getUserSessionByBrokerUserIdStream(realm, result.getSession().getBrokerUserId())
+            .filter(userSession -> !(userSession.getState() == UserSessionModel.State.LOGGING_OUT || userSession.getState() == UserSessionModel.State.LOGGED_OUT))
+            .forEach(userSession -> {
+                try {
+                    AuthenticationManager.backchannelLogout(session, realm, userSession, uriInfo, clientConnection, headers, false);
+                } catch (Exception e) {
+                    logger.warn("failed to do backchannel logout for userSession", e);
+                }
+            });
 
         // Send signout to IDP
         WSFedResponseBuilder builder = new WSFedResponseBuilder();

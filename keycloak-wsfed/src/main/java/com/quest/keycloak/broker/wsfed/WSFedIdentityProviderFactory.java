@@ -48,4 +48,9 @@ public class WSFedIdentityProviderFactory extends AbstractIdentityProviderFactor
     public String getId() {
         return PROVIDER_ID;
     }
+
+    @Override
+    public WSFedIdentityProviderConfig createConfig() {
+        return new WSFedIdentityProviderConfig();
+    }
 }

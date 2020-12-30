@@ -18,10 +18,53 @@ module.controller('ClientTabCtrl', function(Dialog, $scope, Current, Notificatio
     };
 });
 
-module.controller('ClientRoleListCtrl', function($scope, $location, realm, client, roles, $route, RoleById, Notifications, Dialog) {
+module.controller('ClientRoleListCtrl', function($scope, $route, realm, client, ClientRoleList, RoleById, Notifications, Dialog) {
     $scope.realm = realm;
-    $scope.roles = roles;
+    $scope.roles = [];
     $scope.client = client;
+
+    $scope.query = {
+        realm: realm.realm,
+        client: $scope.client.id,
+        search : null,
+        max : 20,
+        first : 0
+    }
+
+    $scope.$watch('query.search', function (newVal, oldVal) {
+        if($scope.query.search && $scope.query.search.length >= 3) {
+            $scope.firstPage();
+        }
+    }, true);
+
+    $scope.firstPage = function() {
+        $scope.query.first = 0;
+        $scope.searchQuery();
+    }
+
+    $scope.previousPage = function() {
+        $scope.query.first -= parseInt($scope.query.max);
+        if ($scope.query.first < 0) {
+            $scope.query.first = 0;
+        }
+        $scope.searchQuery();
+    }
+
+    $scope.nextPage = function() {
+        $scope.query.first += parseInt($scope.query.max);
+        $scope.searchQuery();
+    }
+
+    $scope.searchQuery = function() {
+        $scope.searchLoaded = false;
+
+        $scope.roles = ClientRoleList.query($scope.query, function() {
+            $scope.searchLoaded = true;
+            $scope.lastSearch = $scope.query.search;
+        });
+    };
+
+    $scope.searchQuery();
 
     $scope.removeRole = function(role) {
         Dialog.confirmDelete(role.name, 'role', function() {
@@ -34,12 +77,6 @@ module.controller('ClientRoleListCtrl', function($scope, $location, realm, clien
             });
         });
     };
-
-    $scope.$watch(function() {
-        return $location.path();
-    }, function() {
-        $scope.path = $location.path().substring(1).split("/");
-    });
 });
 
 module.controller('ClientCredentialsCtrl', function($scope, $location, realm, client, clientAuthenticatorProviders, clientConfigProperties, Client, ClientRegistrationAccessToken, Notifications) {
@@ -99,7 +136,7 @@ module.controller('ClientCredentialsCtrl', function($scope, $location, realm, cl
     };
 });
 
-module.controller('ClientSecretCtrl', function($scope, $location, ClientSecret, Notifications) {
+module.controller('ClientSecretCtrl', function($scope, $location, Client, ClientSecret, Notifications) {
     var secret = ClientSecret.get({ realm : $scope.realm.realm, client : $scope.client.id },
         function() {
             $scope.secret = secret.value;
@@ -117,6 +154,25 @@ module.controller('ClientSecretCtrl', function($scope, $location, ClientSecret, 
                 $scope.secret = "error";
             }
         );
+    };
+
+    $scope.tokenEndpointAuthSigningAlg = $scope.client.attributes['token.endpoint.auth.signing.alg'];
+
+    $scope.switchChange = function() {
+        $scope.changed = true;
+    }
+
+    $scope.save = function() {
+        $scope.client.attributes['token.endpoint.auth.signing.alg'] = $scope.tokenEndpointAuthSigningAlg;
+
+        Client.update({
+            realm : $scope.realm.realm,
+            client : $scope.client.id
+        }, $scope.client, function() {
+            $scope.changed = false;
+            $scope.clientCopy = angular.copy($scope.client);
+            Notifications.success("Client authentication configuration has been saved to the client.");
+        });
     };
 
     $scope.$watch(function() {
@@ -190,6 +246,8 @@ module.controller('ClientSignedJWTCtrl', function($scope, $location, Client, Cli
         }
     }, true);
 
+    $scope.tokenEndpointAuthSigningAlg = $scope.client.attributes['token.endpoint.auth.signing.alg'];
+
     if ($scope.client.attributes["use.jwks.url"]) {
         if ($scope.client.attributes["use.jwks.url"] == "true") {
             $scope.useJwksUrl = true;
@@ -203,6 +261,7 @@ module.controller('ClientSignedJWTCtrl', function($scope, $location, Client, Cli
     }
 
     $scope.save = function() {
+        $scope.client.attributes['token.endpoint.auth.signing.alg'] = $scope.tokenEndpointAuthSigningAlg;
 
         if ($scope.useJwksUrl == true) {
             $scope.client.attributes["use.jwks.url"] = "true";
@@ -674,7 +733,7 @@ module.controller('ClientOfflineSessionsCtrl', function($scope, realm, offlineSe
     };
 });
 
-module.controller('ClientRoleDetailCtrl', function($scope, realm, client, role, roles, clients,
+module.controller('ClientRoleDetailCtrl', function($scope, $route, realm, client, role, roles, Client,
                                                         Role, ClientRole, RoleById, RoleRealmComposites, RoleClientComposites,
                                                         $http, $location, Dialog, Notifications, ComponentUtils) {
     $scope.realm = realm;
@@ -728,7 +787,7 @@ module.controller('ClientRoleDetailCtrl', function($scope, realm, client, role, 
         delete $scope.newAttribute;
     }
 
-    $scope.removeAttribute = function(key) {    
+    $scope.removeAttribute = function(key) {
         delete $scope.role.attributes[key];
     }
 
@@ -752,7 +811,7 @@ module.controller('ClientRoleDetailCtrl', function($scope, realm, client, role, 
         }
     }
 
-    roleControl($scope, realm, role, roles, clients,
+    roleControl($scope, $route, realm, role, roles, Client,
         ClientRole, RoleById, RoleRealmComposites, RoleClientComposites,
         $http, $location, Notifications, Dialog, ComponentUtils);
 
@@ -851,27 +910,50 @@ module.controller('ClientImportCtrl', function($scope, $location, $upload, realm
 });
 
 
-module.controller('ClientListCtrl', function($scope, realm, Client, serverInfo, $route, Dialog, Notifications, filterFilter) {
-    $scope.realm = realm;
-    $scope.clients = [];
-    $scope.currentPage = 1;
-    $scope.currentPageInput = 1;
-    $scope.numberOfPages = 1;
-    $scope.pageSize = 20;
-    $scope.clientStorageProviders = serverInfo.componentTypes['org.keycloak.storage.client.ClientStorageProvider'];
+module.controller('ClientListCtrl', function($scope, realm, Client, ClientListSearchState, $route, Dialog, Notifications) {
+    $scope.init = function() {
+        $scope.realm = realm;
+        $scope.searchLoaded = true;
 
-    Client.query({realm: realm.realm, viewableOnly: true}).$promise.then(function(clients) {
-        $scope.numberOfPages = Math.ceil(clients.length/$scope.pageSize);
-        $scope.clients = clients;
-    });
+        ClientListSearchState.query.realm = realm.realm;
+        $scope.query = ClientListSearchState.query;
 
-    $scope.$watch('search', function (newVal, oldVal) {
-        $scope.filtered = filterFilter($scope.clients, newVal);
-        $scope.totalItems = $scope.filtered.length;
-        $scope.numberOfPages = Math.ceil($scope.totalItems/$scope.pageSize);
-        $scope.currentPage = 1;
-        $scope.currentPageInput = 1;
-  }, true);
+        if (!ClientListSearchState.isFirstSearch) {
+            $scope.searchQuery();
+        } else {
+            $scope.query.clientId = null;
+            $scope.firstPage();
+        }
+    };
+
+    $scope.searchQuery = function() {
+        console.log("query.search: ", $scope.query);
+        $scope.searchLoaded = false;
+
+        $scope.clients = Client.query($scope.query, function() {
+            $scope.searchLoaded = true;
+            $scope.lastSearch = $scope.query.search;
+            ClientListSearchState.isFirstSearch = false;
+        });
+    };
+
+    $scope.firstPage = function() {
+        $scope.query.first = 0;
+        $scope.searchQuery();
+    }
+
+    $scope.previousPage = function() {
+        $scope.query.first -= parseInt($scope.query.max);
+        if ($scope.query.first < 0) {
+            $scope.query.first = 0;
+        }
+        $scope.searchQuery();
+    }
+
+    $scope.nextPage = function() {
+        $scope.query.first += parseInt($scope.query.max);
+        $scope.searchQuery();
+    }
 
     $scope.removeClient = function(client) {
         Dialog.confirmDelete(client.clientId, 'client', function() {
@@ -883,15 +965,6 @@ module.controller('ClientListCtrl', function($scope, realm, Client, serverInfo, 
                 Notifications.success("The client has been deleted.");
             });
         });
-    };
-
-    $scope.searchClient = function() {
-        console.log('searchQuery!!! ' + $scope.search.clientId);
-        Client.query({realm: realm.realm, viewableOnly: true, clientId: $scope.search.clientId}).$promise.then(function(clients) {
-            $scope.numberOfPages = Math.ceil(clients.length/$scope.pageSize);
-            $scope.clients = clients;
-        });
-
     };
 
     $scope.exportClient = function(client) {
@@ -953,6 +1026,7 @@ module.controller('ClientInstallationCtrl', function($scope, realm, client, serv
 
 
 module.controller('ClientDetailCtrl', function($scope, realm, client, flows, $route, serverInfo, Client, ClientDescriptionConverter, Components, ClientStorageOperations, $location, $modal, Dialog, Notifications, TimeUnit2) {
+    $scope.serverInfo = serverInfo;
     $scope.flows = [];
     $scope.clientFlows = [];
     var emptyFlow = {
@@ -982,7 +1056,9 @@ module.controller('ClientDetailCtrl', function($scope, realm, client, flows, $ro
     $scope.signatureAlgorithms = [
         "RSA_SHA1",
         "RSA_SHA256",
+        "RSA_SHA256_MGF1",
         "RSA_SHA512",
+        "RSA_SHA512_MGF1",
         "DSA_SHA1"
     ];
     $scope.nameIdFormats = [
@@ -1044,6 +1120,11 @@ module.controller('ClientDetailCtrl', function($scope, realm, client, flows, $ro
     $scope.tlsClientCertificateBoundAccessTokens = false;
 
     $scope.accessTokenLifespan = TimeUnit2.asUnit(client.attributes['access.token.lifespan']);
+    $scope.samlAssertionLifespan = TimeUnit2.asUnit(client.attributes['saml.assertion.lifespan']);
+    $scope.clientSessionIdleTimeout = TimeUnit2.asUnit(client.attributes['client.session.idle.timeout']);
+    $scope.clientSessionMaxLifespan = TimeUnit2.asUnit(client.attributes['client.session.max.lifespan']);
+    $scope.clientOfflineSessionIdleTimeout = TimeUnit2.asUnit(client.attributes['client.offline.session.idle.timeout']);
+    $scope.clientOfflineSessionMaxLifespan = TimeUnit2.asUnit(client.attributes['client.offline.session.max.lifespan']);
 
     if(client.origin) {
         if ($scope.access.viewRealm) {
@@ -1083,10 +1164,14 @@ module.controller('ClientDetailCtrl', function($scope, realm, client, flows, $ro
             $scope.signatureAlgorithm = $scope.signatureAlgorithms[0];
         } else if ($scope.client.attributes['saml.signature.algorithm'] == 'RSA_SHA256') {
             $scope.signatureAlgorithm = $scope.signatureAlgorithms[1];
-        } else if ($scope.client.attributes['saml.signature.algorithm'] == 'RSA_SHA512') {
+        } else if ($scope.client.attributes['saml.signature.algorithm'] == 'RSA_SHA256_MGF1') {
             $scope.signatureAlgorithm = $scope.signatureAlgorithms[2];
-        } else if ($scope.client.attributes['saml.signature.algorithm'] == 'DSA_SHA1') {
+        } else if ($scope.client.attributes['saml.signature.algorithm'] == 'RSA_SHA512') {
             $scope.signatureAlgorithm = $scope.signatureAlgorithms[3];
+        } else if ($scope.client.attributes['saml.signature.algorithm'] == 'RSA_SHA512_MGF1') {
+            $scope.signatureAlgorithm = $scope.signatureAlgorithms[4];
+        } else if ($scope.client.attributes['saml.signature.algorithm'] == 'DSA_SHA1') {
+            $scope.signatureAlgorithm = $scope.signatureAlgorithms[5];
         }
         if ($scope.client.attributes['saml_name_id_format'] == 'username') {
             $scope.nameIdFormat = $scope.nameIdFormats[0];
@@ -1105,7 +1190,6 @@ module.controller('ClientDetailCtrl', function($scope, realm, client, flows, $ro
                 $scope.wsfedJwt = false;
             }
         }
-
         if ($scope.client.attributes["wsfed.x5t"]) {
             if ($scope.client.attributes["wsfed.x5t"] == "true") {
                 $scope.wsfedX5t = true;
@@ -1113,7 +1197,6 @@ module.controller('ClientDetailCtrl', function($scope, realm, client, flows, $ro
                 $scope.wsfedX5t = false;
             }
         }
-
         if ($scope.client.attributes['wsfed.saml_assertion_token_format'] == 'SAML 2.0') {
             $scope.wsfedSamlAssertionTokenFormat = $scope.wsfedSamlAssertionTokenFormats[0];
         } else if ($scope.client.attributes['wsfed.saml_assertion_token_format'] == 'SAML 1.1') {
@@ -1234,12 +1317,42 @@ module.controller('ClientDetailCtrl', function($scope, realm, client, flows, $ro
            }
        }
 
+        var useRefreshToken = $scope.client.attributes["client_credentials.use_refresh_token"];
+        if (useRefreshToken === "true") {
+            $scope.useRefreshTokenForClientCredentialsGrant = true;
+        } else {
+            $scope.useRefreshTokenForClientCredentialsGrant = false;
+        }
+
         if ($scope.client.attributes["display.on.consent.screen"]) {
             if ($scope.client.attributes["display.on.consent.screen"] == "true") {
                 $scope.displayOnConsentScreen = true;
             } else {
                 $scope.displayOnConsentScreen = false;
             }
+        }
+
+        if ($scope.client.attributes["backchannel.logout.session.required"]) {
+            if ($scope.client.attributes["backchannel.logout.session.required"] == "true") {
+                $scope.backchannelLogoutSessionRequired = true;
+            } else {
+                $scope.backchannelLogoutSessionRequired = false;
+            }
+        }
+
+        if ($scope.client.attributes["backchannel.logout.revoke.offline.tokens"]) {
+            if ($scope.client.attributes["backchannel.logout.revoke.offline.tokens"] == "true") {
+                $scope.backchannelLogoutRevokeOfflineSessions = true;
+            } else {
+                $scope.backchannelLogoutRevokeOfflineSessions = false;
+            }
+        }
+
+
+        if ($scope.client.attributes["request.uris"] && $scope.client.attributes["request.uris"].length > 0) {
+            $scope.client.requestUris = $scope.client.attributes["request.uris"].split("##");
+        } else {
+            $scope.client.requestUris = [];
         }
     }
 
@@ -1294,6 +1407,7 @@ module.controller('ClientDetailCtrl', function($scope, realm, client, flows, $ro
         } else if ($scope.accessType == "bearer-only") {
             $scope.clientEdit.bearerOnly = true;
             $scope.clientEdit.publicClient = false;
+            $scope.clientEdit.alwaysDisplayInConsole = false;
         }
     };
 
@@ -1383,6 +1497,9 @@ module.controller('ClientDetailCtrl', function($scope, realm, client, flows, $ro
         if ($scope.newWebOrigin && $scope.newWebOrigin.length > 0) {
             return true;
         }
+        if ($scope.newRequestUri && $scope.newRequestUri.length > 0) {
+            return true;
+        }
         return false;
     }
 
@@ -1395,6 +1512,46 @@ module.controller('ClientDetailCtrl', function($scope, realm, client, flows, $ro
             }
         } else {
             $scope.clientEdit.attributes['access.token.lifespan'] = null;
+        }
+    }
+
+    $scope.updateAssertionLifespan = function() {
+        if ($scope.samlAssertionLifespan.time) {
+            $scope.clientEdit.attributes['saml.assertion.lifespan'] = $scope.samlAssertionLifespan.toSeconds();
+        } else {
+            $scope.clientEdit.attributes['saml.assertion.lifespan'] = null;
+        }
+    }
+
+    $scope.updateClientSessionIdleTimeout = function() {
+        if ($scope.clientSessionIdleTimeout.time) {
+            $scope.clientEdit.attributes['client.session.idle.timeout'] = $scope.clientSessionIdleTimeout.toSeconds();
+        } else {
+            $scope.clientEdit.attributes['client.session.idle.timeout'] = null;
+        }
+    }
+
+    $scope.updateClientSessionMaxLifespan = function() {
+        if ($scope.clientSessionMaxLifespan.time) {
+            $scope.clientEdit.attributes['client.session.max.lifespan'] = $scope.clientSessionMaxLifespan.toSeconds();
+        } else {
+            $scope.clientEdit.attributes['client.session.max.lifespan'] = null;
+        }
+    }
+
+    $scope.updateClientOfflineSessionIdleTimeout = function() {
+        if ($scope.clientOfflineSessionIdleTimeout.time) {
+            $scope.clientEdit.attributes['client.offline.session.idle.timeout'] = $scope.clientOfflineSessionIdleTimeout.toSeconds();
+        } else {
+            $scope.clientEdit.attributes['client.offline.session.idle.timeout'] = null;
+        }
+    }
+
+    $scope.updateClientOfflineSessionMaxLifespan = function() {
+        if ($scope.clientOfflineSessionMaxLifespan.time) {
+            $scope.clientEdit.attributes['client.offline.session.max.lifespan'] = $scope.clientOfflineSessionMaxLifespan.toSeconds();
+        } else {
+            $scope.clientEdit.attributes['client.offline.session.max.lifespan'] = null;
         }
     }
 
@@ -1430,12 +1587,23 @@ module.controller('ClientDetailCtrl', function($scope, realm, client, flows, $ro
         $scope.changed = isChanged();
     }, true);
 
+    $scope.$watch('newRequestUri', function() {
+        $scope.changed = isChanged();
+    }, true);
+
     $scope.deleteWebOrigin = function(index) {
         $scope.clientEdit.webOrigins.splice(index, 1);
     }
     $scope.addWebOrigin = function() {
         $scope.clientEdit.webOrigins.push($scope.newWebOrigin);
         $scope.newWebOrigin = "";
+    }
+    $scope.deleteRequestUri = function(index) {
+        $scope.clientEdit.requestUris.splice(index, 1);
+    }
+    $scope.addRequestUri = function() {
+        $scope.clientEdit.requestUris.push($scope.newRequestUri);
+        $scope.newRequestUri = "";
     }
     $scope.deleteRedirectUri = function(index) {
         $scope.clientEdit.redirectUris.splice(index, 1);
@@ -1460,14 +1628,22 @@ module.controller('ClientDetailCtrl', function($scope, realm, client, flows, $ro
         } else {
             $scope.clientEdit.attributes["wsfed.jwt"] = "false";
         }
-
         if ($scope.wsfedX5t == true) {
             $scope.clientEdit.attributes["wsfed.x5t"] = "true";
         } else {
             $scope.clientEdit.attributes["wsfed.x5t"] = "false";
         }
-
         $scope.clientEdit.attributes['wsfed.saml_assertion_token_format'] = $scope.wsfedSamlAssertionTokenFormat;
+
+        if ($scope.newRequestUri && $scope.newRequestUri.length > 0) {
+            $scope.addRequestUri();
+        }
+        if ($scope.clientEdit.requestUris && $scope.clientEdit.requestUris.length > 0) {
+            $scope.clientEdit.attributes["request.uris"] = $scope.clientEdit.requestUris.join("##");
+        } else {
+            $scope.clientEdit.attributes["request.uris"] = null;
+        }
+        delete $scope.clientEdit.requestUris;
 
         if ($scope.samlServerSignature == true) {
             $scope.clientEdit.attributes["saml.server.signature"] = "true";
@@ -1542,10 +1718,30 @@ module.controller('ClientDetailCtrl', function($scope, realm, client, flows, $ro
             $scope.clientEdit.attributes["tls.client.certificate.bound.access.tokens"] = "false";
         }
 
+        // KEYCLOAK-9551 Client Credentials Grant generates refresh token
+        // https://tools.ietf.org/html/rfc6749#section-4.4.3
+        if ($scope.useRefreshTokenForClientCredentialsGrant === true) {
+            $scope.clientEdit.attributes["client_credentials.use_refresh_token"] = "true";
+        } else {
+            $scope.clientEdit.attributes["client_credentials.use_refresh_token"] = "false";
+        }
+
         if ($scope.displayOnConsentScreen == true) {
             $scope.clientEdit.attributes["display.on.consent.screen"] = "true";
         } else {
             $scope.clientEdit.attributes["display.on.consent.screen"] = "false";
+        }
+
+        if ($scope.backchannelLogoutSessionRequired == true) {
+            $scope.clientEdit.attributes["backchannel.logout.session.required"] = "true";
+        } else {
+            $scope.clientEdit.attributes["backchannel.logout.session.required"] = "false";
+        }
+
+        if ($scope.backchannelLogoutRevokeOfflineSessions == true) {
+            $scope.clientEdit.attributes["backchannel.logout.revoke.offline.tokens"] = "true";
+        } else {
+            $scope.clientEdit.attributes["backchannel.logout.revoke.offline.tokens"] = "false";
         }
 
         $scope.clientEdit.protocol = $scope.protocol;
@@ -1669,7 +1865,7 @@ module.controller('CreateClientCtrl', function($scope, realm, client, $route, se
     };
 });
 
-module.controller('ClientScopeMappingCtrl', function($scope, $http, realm, client, clients, Notifications,
+module.controller('ClientScopeMappingCtrl', function($scope, $http, realm, $route, client, clients, Notifications,
                                                           Client, ClientScope,
                                                           ClientRealmScopeMapping, ClientClientScopeMapping, ClientRole,
                                                           ClientAvailableRealmScopeMapping, ClientAvailableClientScopeMapping,
@@ -1705,7 +1901,17 @@ module.controller('ClientScopeMappingCtrl', function($scope, $http, realm, clien
     }
 
 
+    $scope.selectedClient = null;
 
+    $scope.selectClient = function(client) {
+        if (!client || !client.id) {
+            $scope.selectedClient = null;
+            return;
+        }
+
+        $scope.selectedClient = client;
+        updateClientRoles();
+    }
 
     function updateRealmRoles() {
         $scope.realmRoles = ClientAvailableRealmScopeMapping.query({realm : realm.realm, client : client.id});
@@ -1714,20 +1920,16 @@ module.controller('ClientScopeMappingCtrl', function($scope, $http, realm, clien
     }
 
     function updateClientRoles() {
-        if ($scope.targetClient) {
-            $scope.clientRoles = ClientAvailableClientScopeMapping.query({realm : realm.realm, client : client.id, targetClient : $scope.targetClient.id});
-            $scope.clientMappings = ClientClientScopeMapping.query({realm : realm.realm, client : client.id, targetClient : $scope.targetClient.id});
-            $scope.clientComposite = ClientCompositeClientScopeMapping.query({realm : realm.realm, client : client.id, targetClient : $scope.targetClient.id});
+        if ($scope.selectedClient) {
+            $scope.clientRoles = ClientAvailableClientScopeMapping.query({realm : realm.realm, client : client.id, targetClient : $scope.selectedClient.id});
+            $scope.clientMappings = ClientClientScopeMapping.query({realm : realm.realm, client : client.id, targetClient : $scope.selectedClient.id});
+            $scope.clientComposite = ClientCompositeClientScopeMapping.query({realm : realm.realm, client : client.id, targetClient : $scope.selectedClient.id});
         } else {
             $scope.clientRoles = null;
             $scope.clientMappings = null;
             $scope.clientComposite = null;
         }
     }
-
-    $scope.changeClient = function() {
-        updateClientRoles();
-    };
 
     $scope.addRealmRole = function() {
         $scope.selectedRealmRolesToAdd = JSON.parse('[' + $scope.selectedRealmRoles + ']');
@@ -1754,7 +1956,7 @@ module.controller('ClientScopeMappingCtrl', function($scope, $http, realm, clien
     $scope.addClientRole = function() {
         $scope.selectedClientRolesToAdd = JSON.parse('[' + $scope.selectedClientRoles + ']');
         $scope.selectedClientRoles = [];
-        $http.post(authUrl + '/admin/realms/' + realm.realm + '/clients/' + client.id +  '/scope-mappings/clients/' + $scope.targetClient.id,
+        $http.post(authUrl + '/admin/realms/' + realm.realm + '/clients/' + client.id +  '/scope-mappings/clients/' + $scope.selectedClient.id,
                 $scope.selectedClientRolesToAdd).then(function () {
                 updateClientRoles();
                 $scope.selectedClientRolesToAdd = [];
@@ -1765,7 +1967,7 @@ module.controller('ClientScopeMappingCtrl', function($scope, $http, realm, clien
     $scope.deleteClientRole = function() {
         $scope.selectedClientMappingsToRemove = JSON.parse('[' + $scope.selectedClientMappings + ']');
         $scope.selectedClientMappings = [];
-        $http.delete(authUrl + '/admin/realms/' + realm.realm + '/clients/' + client.id +  '/scope-mappings/clients/' + $scope.targetClient.id,
+        $http.delete(authUrl + '/admin/realms/' + realm.realm + '/clients/' + client.id +  '/scope-mappings/clients/' + $scope.selectedClient.id,
             {data : $scope.selectedClientMappingsToRemove, headers : {"content-type" : "application/json"}}).then(function () {
                 updateClientRoles();
                 $scope.selectedClientMappingsToRemove = [];
@@ -1773,6 +1975,7 @@ module.controller('ClientScopeMappingCtrl', function($scope, $http, realm, clien
             });
     };
 
+    clientSelectControl($scope, $route.current.params.realm, Client);
     updateRealmRoles();
 });
 
@@ -2158,6 +2361,7 @@ module.controller('ClientProtocolMapperCreateCtrl', function($scope, realm, serv
         changed: false,
         mapperTypes: serverInfo.protocolMapperTypes[protocol]
     };
+    console.log("mapper types: ", $scope.model.mapperTypes);
 
     // apply default configurations on change for selected protocolmapper type.
     $scope.$watch('model.mapperType', function() {
@@ -2339,7 +2543,8 @@ module.controller('ClientClientScopesSetupCtrl', function($scope, realm, Realm, 
 
 module.controller('ClientClientScopesEvaluateCtrl', function($scope, Realm, User, ClientEvaluateProtocolMappers, ClientEvaluateGrantedRoles,
         ClientEvaluateNotGrantedRoles, ClientEvaluateGenerateExampleToken, realm, client, clients, clientScopes, serverInfo,
-        ComponentUtils, clientOptionalClientScopes, clientDefaultClientScopes, $route, $routeParams, $http, Notifications, $location) {
+        ComponentUtils, clientOptionalClientScopes, clientDefaultClientScopes, $route, $routeParams, $http, Notifications, $location,
+        Client) {
 
     console.log('ClientClientScopesEvaluateCtrl');
 
@@ -2477,6 +2682,21 @@ module.controller('ClientClientScopesEvaluateCtrl', function($scope, Realm, User
         $scope.userId = user.id;
     }
 
+    clientSelectControl($scope, $route.current.params.realm, Client);
+
+    $scope.selectedClient = null;
+
+    $scope.selectClient = function(client) {
+        console.log("selected client: ", client);
+        if (!client || !client.id) {
+            $scope.selectedClient = null;
+            return;
+        }
+
+        $scope.selectedClient = client;
+        updateScopeClientRoles();
+    }
+
 
     $scope.sendEvaluationRequest = function () {
 
@@ -2570,17 +2790,17 @@ module.controller('ClientClientScopesEvaluateCtrl', function($scope, Realm, User
     }
 
     function updateScopeClientRoles() {
-        if ($scope.targetClient) {
+        if ($scope.selectedClient) {
             $scope.grantedClientRoles = ClientEvaluateGrantedRoles.query({
                 realm: realm.realm,
                 client: client.id,
-                roleContainer: $scope.targetClient.id,
+                roleContainer: $scope.selectedClient.id,
                 scopeParam: $scope.scopeParam
             });
             $scope.notGrantedClientRoles = ClientEvaluateNotGrantedRoles.query({
                 realm: realm.realm,
                 client: client.id,
-                roleContainer: $scope.targetClient.id,
+                roleContainer: $scope.selectedClient.id,
                 scopeParam: $scope.scopeParam
             });
         } else {
@@ -2588,10 +2808,6 @@ module.controller('ClientClientScopesEvaluateCtrl', function($scope, Realm, User
             $scope.notGrantedClientRoles = null;
         }
     }
-
-    $scope.changeClient = function() {
-        updateScopeClientRoles();
-    };
 });
 
 
@@ -3108,8 +3324,8 @@ module.controller('ClientScopeAddBuiltinProtocolMapperCtrl', function($scope, re
 });
 
 
-module.controller('ClientScopeScopeMappingCtrl', function($scope, $http, realm, clientScope, clients, Notifications,
-                                                     ClientScope,
+module.controller('ClientScopeScopeMappingCtrl', function($scope, $http, $route, realm, clientScope, Notifications,
+                                                     ClientScope, Client,
                                                      ClientScopeRealmScopeMapping, ClientScopeClientScopeMapping, ClientRole,
                                                      ClientScopeAvailableRealmScopeMapping, ClientScopeAvailableClientScopeMapping,
                                                      ClientScopeCompositeRealmScopeMapping, ClientScopeCompositeClientScopeMapping) {
@@ -3118,13 +3334,13 @@ module.controller('ClientScopeScopeMappingCtrl', function($scope, $http, realm, 
     $scope.selectedRealmRoles = [];
     $scope.selectedRealmMappings = [];
     $scope.realmMappings = [];
-    $scope.clients = clients;
     $scope.clientRoles = [];
     $scope.clientComposite = [];
     $scope.selectedClientRoles = [];
     $scope.selectedClientMappings = [];
     $scope.clientMappings = [];
     $scope.dummymodel = [];
+    $scope.selectedClient = null;
 
     function updateScopeRealmRoles() {
         $scope.realmRoles = ClientScopeAvailableRealmScopeMapping.query({realm : realm.realm, clientScope : clientScope.id});
@@ -3133,10 +3349,10 @@ module.controller('ClientScopeScopeMappingCtrl', function($scope, $http, realm, 
     }
 
     function updateScopeClientRoles() {
-        if ($scope.targetClient) {
-            $scope.clientRoles = ClientScopeAvailableClientScopeMapping.query({realm : realm.realm, clientScope : clientScope.id, targetClient : $scope.targetClient.id});
-            $scope.clientMappings = ClientScopeClientScopeMapping.query({realm : realm.realm, clientScope : clientScope.id, targetClient : $scope.targetClient.id});
-            $scope.clientComposite = ClientScopeCompositeClientScopeMapping.query({realm : realm.realm, clientScope : clientScope.id, targetClient : $scope.targetClient.id});
+        if ($scope.selectedClient) {
+            $scope.clientRoles = ClientScopeAvailableClientScopeMapping.query({realm : realm.realm, clientScope : clientScope.id, targetClient : $scope.selectedClient.id});
+            $scope.clientMappings = ClientScopeClientScopeMapping.query({realm : realm.realm, clientScope : clientScope.id, targetClient : $scope.selectedClient.id});
+            $scope.clientComposite = ClientScopeCompositeClientScopeMapping.query({realm : realm.realm, clientScope : clientScope.id, targetClient : $scope.selectedClient.id});
         } else {
             $scope.clientRoles = null;
             $scope.clientMappings = null;
@@ -3144,7 +3360,12 @@ module.controller('ClientScopeScopeMappingCtrl', function($scope, $http, realm, 
         }
     }
 
-    $scope.changeClient = function() {
+    $scope.changeClient = function(client) {
+        if (!client || !client.id) {
+            $scope.selectedClient = null;
+            return;
+        }
+        $scope.selectedClient = client;
         updateScopeClientRoles();
     };
 
@@ -3173,7 +3394,7 @@ module.controller('ClientScopeScopeMappingCtrl', function($scope, $http, realm, 
     $scope.addClientRole = function() {
         $scope.selectedClientRolesToAdd = JSON.parse('[' + $scope.selectedClientRoles + ']');
         $scope.selectedClientRoles = [];
-        $http.post(authUrl + '/admin/realms/' + realm.realm + '/client-scopes/' + clientScope.id +  '/scope-mappings/clients/' + $scope.targetClient.id,
+        $http.post(authUrl + '/admin/realms/' + realm.realm + '/client-scopes/' + clientScope.id +  '/scope-mappings/clients/' + $scope.selectedClient.id,
             $scope.selectedClientRolesToAdd).then(function () {
                 updateScopeClientRoles();
                 $scope.selectedClientRolesToAdd = [];
@@ -3184,7 +3405,7 @@ module.controller('ClientScopeScopeMappingCtrl', function($scope, $http, realm, 
     $scope.deleteClientRole = function() {
         $scope.selectedClientMappingsToRemove = JSON.parse('[' + $scope.selectedClientMappings + ']');
         $scope.selectedClientMappings = [];
-        $http.delete(authUrl + '/admin/realms/' + realm.realm + '/client-scopes/' + clientScope.id +  '/scope-mappings/clients/' + $scope.targetClient.id,
+        $http.delete(authUrl + '/admin/realms/' + realm.realm + '/client-scopes/' + clientScope.id +  '/scope-mappings/clients/' + $scope.selectedClient.id,
             {data : $scope.selectedClientMappingsToRemove, headers : {"content-type" : "application/json"}}).then(function () {
                 updateScopeClientRoles();
                 $scope.selectedClientMappingsToRemove = [];
@@ -3192,6 +3413,7 @@ module.controller('ClientScopeScopeMappingCtrl', function($scope, $http, realm, 
             });
     };
 
+    clientSelectControl($scope, $route.current.params.realm, Client);
     updateScopeRealmRoles();
 });
 
@@ -3400,5 +3622,4 @@ module.controller('GenericClientStorageCtrl', function($scope, $location, Notifi
 
 
 });
-
 

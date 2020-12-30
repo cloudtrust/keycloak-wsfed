@@ -68,7 +68,7 @@ public class OIDCUserPropertyMapper extends AbstractWsfedProtocolMapper implemen
     public AccessToken transformAccessToken(AccessToken token, ProtocolMapperModel mappingModel, KeycloakSession session,
                                             UserSessionModel userSession, AuthenticatedClientSessionModel clientSession) {
         UserPropertyMapper mapper = new UserPropertyMapper();
-        return mapper.transformAccessToken(token, mappingModel, session, userSession, DefaultClientSessionContext.fromClientSessionScopeParameter(clientSession));
+        return mapper.transformAccessToken(token, mappingModel, session, userSession, DefaultClientSessionContext.fromClientSessionScopeParameter(clientSession, session));
     }
 
     public static ProtocolMapperModel createClaimMapper(String name,

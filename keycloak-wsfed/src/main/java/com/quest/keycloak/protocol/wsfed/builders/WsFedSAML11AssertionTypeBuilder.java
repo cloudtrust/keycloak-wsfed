@@ -28,7 +28,6 @@ import org.keycloak.dom.saml.v2.assertion.AttributeType;
 import org.keycloak.dom.saml.v2.assertion.EncryptedElementType;
 import org.keycloak.models.AuthenticatedClientSessionModel;
 import org.keycloak.models.KeycloakSession;
-import org.keycloak.models.ProtocolMapperModel;
 import org.keycloak.models.UserSessionModel;
 import org.keycloak.protocol.ProtocolMapper;
 import org.keycloak.protocol.saml.SamlProtocol;
@@ -40,7 +39,6 @@ import org.keycloak.saml.common.exceptions.ConfigurationException;
 import java.net.URI;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Set;
 import java.util.function.Function;
 
 /**
@@ -112,21 +110,19 @@ public class WsFedSAML11AssertionTypeBuilder extends WsFedSAMLAssertionTypeAbstr
 
         SAML11AssertionType assertion = builder.buildModel();
 
-        List<SamlProtocol.ProtocolMapperProcessor<WSFedSAMLAttributeStatementMapper>> attributeStatementMappers = new LinkedList<>();
-        SamlProtocol.ProtocolMapperProcessor<WSFedSAMLRoleListMapper> roleListMapper = null;
+        final List<SamlProtocol.ProtocolMapperProcessor<WSFedSAMLAttributeStatementMapper>> attributeStatementMappers = new LinkedList<>();
+        final List<SamlProtocol.ProtocolMapperProcessor<WSFedSAMLRoleListMapper>> roleListMappers = new LinkedList<>();
 
-        Set<ProtocolMapperModel> mappings = clientSession.getClient().getProtocolMappers();
-        for (ProtocolMapperModel mapping : mappings) {
-
+        clientSession.getClient().getProtocolMappersStream().forEach(mapping -> {
             ProtocolMapper mapper = (ProtocolMapper)session.getKeycloakSessionFactory().getProviderFactory(ProtocolMapper.class, mapping.getProtocolMapper());
-            if (mapper == null) continue;
             if (mapper instanceof WSFedSAMLAttributeStatementMapper) {
                 attributeStatementMappers.add(new SamlProtocol.ProtocolMapperProcessor<>((WSFedSAMLAttributeStatementMapper)mapper, mapping));
             }
             if (mapper instanceof WSFedSAMLRoleListMapper) {
-                roleListMapper = new SamlProtocol.ProtocolMapperProcessor<>((WSFedSAMLRoleListMapper)mapper, mapping);
+                roleListMappers.add(new SamlProtocol.ProtocolMapperProcessor<>((WSFedSAMLRoleListMapper)mapper, mapping));
             }
-        }
+        });
+        SamlProtocol.ProtocolMapperProcessor<WSFedSAMLRoleListMapper> roleListMapper = roleListMappers.isEmpty() ? null : roleListMappers.get(0);
 
         transformAttributeStatement(attributeStatementMappers, assertion, session, userSession, clientSession);
         populateRoles(roleListMapper, assertion, session, userSession, clientSession);
