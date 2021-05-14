@@ -297,7 +297,7 @@ public class WSFedEndpoint {
                     clientCode.getClientSession().setClientNote(ACTIVE_CODE, map.get("code"));
 
                     // set authorization code and redirectUri
-                    identity.setCode(map.get("code"));
+                    // core removed from BrokerIdentityContext: identity.setCode(map.get("code"));
                     identity.getContextData().put(WSFedConstants.WSFED_CONTEXT, redirectUri);
                 } else {
                     /*
@@ -312,7 +312,7 @@ public class WSFedEndpoint {
             }
         } else {
             // regular login with no create user parameters
-            identity.setCode(decodedContext);
+            // core removed from BrokerIdentityContext: identity.setCode(decodedContext);
         }
         return null;
     }
