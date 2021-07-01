@@ -9,13 +9,13 @@ import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.client.protocol.HttpClientContext;
 import org.hamcrest.Matcher;
-import org.junit.Assert;
 
 import java.net.URI;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.function.Consumer;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.notNullValue;
 
 /** Inspired from the parent project https://github.com/keycloak/keycloak */
@@ -94,7 +94,7 @@ public class WsFedClientBuilder {
 
     public WsFedClientBuilder assertResponse(Matcher<HttpResponse> matcher) {
         steps.add((client, currentURI, currentResponse, context) -> {
-            Assert.assertThat(currentResponse, matcher);
+            assertThat(currentResponse, matcher);
             return null;
         });
         return this;
@@ -157,8 +157,8 @@ public class WsFedClientBuilder {
         return
                 doNotFollowRedirects()
                         .addStep((client, currentURI, currentResponse, context) -> {
-                            //Assert.assertThat(currentResponse, Matchers.statusCodeIsHC(Status.FOUND));
-                            Assert.assertThat("Location header not found", currentResponse.getFirstHeader("Location"), notNullValue());
+                            //assertThat(currentResponse, Matchers.statusCodeIsHC(Status.FOUND));
+                            assertThat("Location header not found", currentResponse.getFirstHeader("Location"), notNullValue());
                             return new HttpGet(currentResponse.getFirstHeader("Location").getValue());
                         });
     }

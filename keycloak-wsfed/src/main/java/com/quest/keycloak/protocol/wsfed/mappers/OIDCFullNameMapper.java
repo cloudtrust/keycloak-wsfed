@@ -67,7 +67,7 @@ public class OIDCFullNameMapper extends AbstractWsfedProtocolMapper implements W
     public AccessToken transformAccessToken(AccessToken token, ProtocolMapperModel mappingModel, KeycloakSession session,
                                             UserSessionModel userSession, AuthenticatedClientSessionModel clientSession) {
         FullNameMapper mapper = new FullNameMapper();
-        return mapper.transformAccessToken(token, mappingModel, session, userSession, DefaultClientSessionContext.fromClientSessionScopeParameter(clientSession));
+        return mapper.transformAccessToken(token, mappingModel, session, userSession, DefaultClientSessionContext.fromClientSessionScopeParameter(clientSession, session));
     }
 
     public static ProtocolMapperModel create(String name,

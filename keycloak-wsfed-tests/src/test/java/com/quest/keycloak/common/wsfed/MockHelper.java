@@ -155,6 +155,8 @@ public class MockHelper {
         when(getRealm().getAccessCodeLifespan()).thenReturn(getAccessCodeLifespan());
         when(getRealm().getAccessTokenLifespan()).thenReturn(getAccessTokenLifespan());
         when(getRealm().getSslRequired()).thenReturn(SslRequired.ALL);
+        when(getRealm().getEventsListenersStream()).thenReturn(new ArrayList<String>().stream());
+        when(getRealm().getClientScopesStream()).thenReturn(new ArrayList<ClientScopeModel>().stream());
         generateActiveRealmKeys(keyManager, activeKey, realm);
     }
 
@@ -214,7 +216,8 @@ public class MockHelper {
             when(getClient().getProtocolMapperById(mapperModel.getId())).thenReturn(mapperModel);
         }
 
-        when(realm.getClientByClientId(getClientId())).thenReturn(getClient());
+        when(getRealm().getClientByClientId(getClientId())).thenReturn(getClient());
+        when(getRealm().getClientsStream()).thenReturn(Collections.singletonList(getClient()).stream());
     }
 
     protected void initializeUserModelMock() {
@@ -223,19 +226,15 @@ public class MockHelper {
         when(getUser().getEmail()).thenReturn(getEmail());
 
         Set<GroupModel> userGroups = new HashSet<>();
-        GroupModel group1 = mock(GroupModel.class);
-        GroupModel group2 = mock(GroupModel.class);
-        GroupModel group3 = mock(GroupModel.class);
-        userGroups.addAll(Arrays.asList(group1, group2, group3));
-        when(group1.getName()).thenReturn("group1");
-        when(group2.getName()).thenReturn("group2");
-        when(group3.getName()).thenReturn("group3");
-
-        when(user.getGroups()).thenReturn(userGroups);
+        when(user.getGroupsStream()).thenReturn(userGroups.stream());
         when(user.isMemberOf(any())).thenReturn(false);
-        when(user.isMemberOf(group1)).thenReturn(true);
-        when(user.isMemberOf(group2)).thenReturn(true);
-        when(user.isMemberOf(group3)).thenReturn(true);
+        for(int i=1;i<=3;i++) {
+            GroupModel group = mock(GroupModel.class);
+            userGroups.add(group);
+            when(group.getName()).thenReturn("group"+i);
+            when(group.getRoleMappingsStream()).thenReturn(new ArrayList<RoleModel>().stream());
+            when(user.isMemberOf(group)).thenReturn(true);
+        }
     }
 
     protected void initializeLoginFormsProviderMock() {
@@ -256,12 +255,12 @@ public class MockHelper {
         when(getSession().getProvider(LoginFormsProvider.class).setAuthenticationSession(any())).thenReturn(getLoginFormsProvider());
         when(getSession().getKeycloakSessionFactory()).thenReturn(getSessionFactory());
         when(getSession().users()).thenReturn(mock(UserStorageManager.class));
-        when(getSession().users().getUserById(user.getId(), realm)).thenReturn(user);
+        when(getSession().users().getUserById(realm, user.getId())).thenReturn(user);
         when(getSession().getProvider(StickySessionEncoderProvider.class)).thenReturn(mock(StickySessionEncoderProvider.class));
 
         when(getSession().sessions()).thenReturn(mock(UserSessionProvider.class));
         when(getSession().sessions().getUserSessionByBrokerSessionId(realm, userSessionModel.getBrokerSessionId())).thenReturn(userSessionModel);
-        when(getSession().sessions().getUserSessionByBrokerUserId(realm, getUser().getId())).thenReturn(Arrays.asList(userSessionModel));
+        when(getSession().sessions().getUserSessionByBrokerUserIdStream(realm, getUser().getId())).thenReturn(Arrays.asList(userSessionModel).stream());
 
         AuthenticationSessionProvider authProvider = mock(AuthenticationSessionProvider.class);
         RootAuthenticationSessionModel rootAuthenticationSessionModel = mock(RootAuthenticationSessionModel.class);
@@ -301,7 +300,7 @@ public class MockHelper {
             when(getClientSessionModel().getNote(entry.getKey())).thenReturn(entry.getValue());
         }
 
-        when(getClientSessionModel().getClient().getProtocolMappers()).thenReturn(getProtocolMappers().keySet());
+        when(getClientSessionModel().getClient().getProtocolMappersStream()).thenReturn(getProtocolMappers().keySet().stream());
         RoleModel role1 = mock(RoleModel.class);
         RoleModel role2 = mock(RoleModel.class);
         RoleModel role3 = mock(RoleModel.class);
@@ -312,7 +311,7 @@ public class MockHelper {
         when(role4.getName()).thenReturn("role4");
 
         List<RoleModel> roles = Arrays.asList(role1, role2, role3, role4);
-        when(user.getRoleMappings()).thenReturn(new HashSet<RoleModel>(roles));
+        when(user.getRoleMappingsStream()).thenReturn(new HashSet<RoleModel>(roles).stream());
         when(realm.getRoleById(anyString())).thenReturn(null);
         for (RoleModel role : roles) {
             when(role.getContainer()).thenReturn(client);
@@ -328,7 +327,7 @@ public class MockHelper {
 
     protected void initializeClientSessionCodeMock() {
         when(getAccessCode().getClientSession()).thenReturn(getClientSessionModel());
-        when(getClientSessionModel().getClient().getProtocolMappers()).thenReturn(getProtocolMappers().keySet());
+        when(getClientSessionModel().getClient().getProtocolMappersStream()).thenReturn(getProtocolMappers().keySet().stream());
     }
 
     protected void initializeUserSessionModelMock() {

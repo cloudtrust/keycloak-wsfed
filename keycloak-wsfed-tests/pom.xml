@@ -5,7 +5,7 @@
     <parent>
         <groupId>io.cloudtrust</groupId>
         <artifactId>kc-cloudtrust-testsuite</artifactId>
-        <version>8.0.1</version>
+        <version>14.0.0</version>
         <relativePath/>
     </parent>
 
@@ -31,12 +31,11 @@
         <auth.server.http.port>8180</auth.server.http.port>
         <auth.server.ssl.required>false</auth.server.ssl.required>
 
-        <keycloak.version>${project.version}</keycloak.version>
         <apache.commons.lang>2.6</apache.commons.lang>
         <mockito.version>1.10.19</mockito.version>
-        <jfreechart.version>1.5.0</jfreechart.version>
+        <!--jfreechart.version>1.5.0</jfreechart.version>
         <apache.ant.version>1.10.5</apache.ant.version>
-        <sshd-core.version>2.1.0</sshd-core.version>
+        <sshd-core.version>2.1.0</sshd-core.version-->
     </properties>
 
     <dependencies>

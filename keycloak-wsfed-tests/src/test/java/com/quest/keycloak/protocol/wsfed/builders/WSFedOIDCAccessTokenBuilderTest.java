@@ -35,9 +35,14 @@ import org.mockito.stubbing.Answer;
 import java.util.UUID;
 
 import static org.hamcrest.core.StringContains.containsString;
-import static org.junit.Assert.*;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 public class WSFedOIDCAccessTokenBuilderTest {
     @Test

@@ -209,7 +209,7 @@ public class WsFedSAML11AssertionTypeBuilderTest {
         mockHelper.getProtocolMappers().put(attributeMemberOf, attributeMapper);
 
         mockHelper.initializeMockValues();
-        when(mockHelper.getUser().getAttribute("memberOf")).thenReturn(Collections.singletonList("aGroup"));
+        when(mockHelper.getUser().getAttributeStream("memberOf")).thenReturn(Collections.singletonList("aGroup").stream());
 
         //SAML Token generation
         WsFedSAML11AssertionTypeBuilder samlBuilder = new WsFedSAML11AssertionTypeBuilder();
@@ -253,7 +253,7 @@ public class WsFedSAML11AssertionTypeBuilderTest {
         mockHelper.getProtocolMappers().put(attributeMemberOf, attributeMapper);
 
         mockHelper.initializeMockValues();
-        when(mockHelper.getUser().getAttribute("memberOf")).thenReturn(Collections.singletonList("aGroup"));
+        when(mockHelper.getUser().getAttributeStream("memberOf")).thenReturn(Collections.singletonList("aGroup").stream());
 
         //SAML Token generation
         WsFedSAML11AssertionTypeBuilder samlBuilder = new WsFedSAML11AssertionTypeBuilder();

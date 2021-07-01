@@ -66,6 +66,6 @@ public class OIDCAddressMapper extends AbstractWsfedProtocolMapper implements WS
     public AccessToken transformAccessToken(AccessToken token, ProtocolMapperModel mappingModel, KeycloakSession session,
                                             UserSessionModel userSession, AuthenticatedClientSessionModel clientSession) {
         AddressMapper mapper = new AddressMapper();
-        return mapper.transformAccessToken(token, mappingModel, session, userSession, DefaultClientSessionContext.fromClientSessionScopeParameter(clientSession));
+        return mapper.transformAccessToken(token, mappingModel, session, userSession, DefaultClientSessionContext.fromClientSessionScopeParameter(clientSession, session));
     }
 }

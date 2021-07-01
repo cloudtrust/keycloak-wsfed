@@ -306,7 +306,7 @@ public class WSFedLoginProtocol implements LoginProtocol {
     }
 
     @Override
-    public void backchannelLogout(UserSessionModel userSession, AuthenticatedClientSessionModel clientSession) {
+    public Response backchannelLogout(UserSessionModel userSession, AuthenticatedClientSessionModel clientSession) {
         logger.debug("backchannelLogout");
         ClientModel client = clientSession.getClient();
         String redirectUri = null;
@@ -316,7 +316,7 @@ public class WSFedLoginProtocol implements LoginProtocol {
         String logoutUrl = RedirectUtils.verifyRedirectUri(session, redirectUri, client);
         if (logoutUrl == null) {
             logger.warn("Can't do backchannel logout. No SingleLogoutService POST Binding registered for client: " + client.getClientId());
-            return;
+            return null;
         }
 
         //Basically the same as SAML only we don't need to send an actual LogoutRequest. Just need to send the signoutcleanup1.0 action.
@@ -325,6 +325,8 @@ public class WSFedLoginProtocol implements LoginProtocol {
         for (int i = 0; logoutUrl!=null && i < 2; i++) { // follow redirects once
             logoutUrl = redirect(client, httpClient, logoutUrl);
         }
+
+        return Response.ok().build();
     }
 
     private String redirect(ClientModel client, HttpClient httpClient, String logoutUrl) {

@@ -21,7 +21,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateEncodingException;
 import java.security.cert.X509Certificate;
-import java.util.Set;
+import java.util.Objects;
 
 import com.quest.keycloak.protocol.wsfed.mappers.WSFedOIDCAccessTokenMapper;
 
@@ -103,8 +103,8 @@ public class WSFedOIDCAccessTokenBuilder {
 
     public String build() throws NoSuchAlgorithmException, CertificateEncodingException {
         TokenManager tokenManager = new TokenManager();
-        UserModel user = session.users().getUserById(userSession.getUser().getId(), realm);
-        AccessToken accessToken = tokenManager.createClientAccessToken(session, realm, client, user, userSession, DefaultClientSessionContext.fromClientSessionScopeParameter(clientSession));
+        UserModel user = session.users().getUserById(realm, userSession.getUser().getId());
+        AccessToken accessToken = tokenManager.createClientAccessToken(session, realm, client, user, userSession, DefaultClientSessionContext.fromClientSessionScopeParameter(clientSession, session));
         accessToken = transformAccessToken(session, accessToken, userSession, clientSession);
         return encodeToken(realm, accessToken);
     }
@@ -177,15 +177,13 @@ public class WSFedOIDCAccessTokenBuilder {
 
     private AccessToken transformAccessToken(KeycloakSession session, AccessToken token, UserSessionModel userSession,
                                             AuthenticatedClientSessionModel clientSession) {
-        Set<ProtocolMapperModel> mappings = clientSession.getClient().getProtocolMappers();
         KeycloakSessionFactory sessionFactory = session.getKeycloakSessionFactory();
-        for (ProtocolMapperModel mapping : mappings) {
-
+        return clientSession.getClient().getProtocolMappersStream().map(mapping -> {
             ProtocolMapper mapper = (ProtocolMapper)sessionFactory.getProviderFactory(ProtocolMapper.class, mapping.getProtocolMapper());
-            if (!(mapper instanceof WSFedOIDCAccessTokenMapper)) continue;
-            token = ((WSFedOIDCAccessTokenMapper)mapper).transformAccessToken(token, mapping, session, userSession, clientSession);
-
-        }
-        return token;
+            if (mapper instanceof WSFedOIDCAccessTokenMapper) {
+                return ((WSFedOIDCAccessTokenMapper)mapper).transformAccessToken(token, mapping, session, userSession, clientSession);
+            }
+            return null;
+        }).filter(Objects::nonNull).findFirst().orElse(token);
     }
 }

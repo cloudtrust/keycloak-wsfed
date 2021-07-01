@@ -299,7 +299,7 @@ public class WSFedEndpointTest {
                     public Response answer(InvocationOnMock invocation) {
                         BrokeredIdentityContext identity = invocation.getArgumentAt(0, BrokeredIdentityContext.class);
 
-                        assertEquals("wsfedContext", identity.getCode());
+                        // core removed from BrokerIdentityContext: assertEquals("wsfedContext", identity.getCode());
                         assertEquals(token.getToken(), identity.getContextData().get(WSFedEndpoint.WSFED_REQUESTED_TOKEN));
                         assertEquals(token.getUsername(), identity.getUsername());
                         assertEquals(token.getEmail(), identity.getEmail());
